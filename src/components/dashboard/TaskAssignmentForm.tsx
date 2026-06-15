@@ -125,7 +125,7 @@ export function TaskAssignmentForm({ onAssign }: TaskAssignmentFormProps) {
   const isValid = (useCustom ? customTask : taskName) && assignedTo && dueDate;
 
   return (
-    <GlassCard strong glow="orange" className="lg:col-span-2">
+    <GlassCard strong glow="orange">
       <h3 className="text-base font-semibold text-aws-slate mb-3 flex items-center gap-2">
         <Send size={16} className="text-aws-orange" />
         Assign New Task

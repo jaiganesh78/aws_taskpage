@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  CORE
+  CREW
+}
+
+enum Category {
+  PRE_EVENT
+  DURING_EVENT
+  POST_EVENT
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TaskStatus {
+  NOT_ASSIGNED
+  ASSIGNED
+  YET_TO_START
+  IN_PROGRESS
+  UNDER_REVIEW
+  COMPLETED
+  BLOCKED
+}
+
+model User {
+  id              String          @id @default(cuid())
+  email           String          @unique
+  name            String
+  password        String
+  role            UserRole        @default(CREW)
+  avatar          String?
+  department      String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  createdTasks      Task[]            @relation("TaskCreator")
+  assignedTask      Task[]            @relation("TaskAssignee")
+  assignedTasks     TaskAssignment[]  @relation("TaskAssignmentUser")
+  assignedByTasks   TaskAssignment[]  @relation("TaskAssignmentAssignedBy")
+  taskComments      Comment[]         @relation("CommentUser")
+  progressUpdates   ProgressUpdate[]  @relation("ProgressUpdateUser")
+  activityLogs      ActivityLog[]     @relation("ActivityLogUser")
+}
+
+model Task {
+  id              String      @id @default(cuid())
+  name            String
+  category        Category
+  priority        Priority
+  status          TaskStatus  @default(NOT_ASSIGNED)
+  progress        Int         @default(0)
+  startDate       DateTime?
+  dueDate         DateTime
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  completedAt     DateTime?
+  createdById     String
+  assignedToId    String?
+
+  createdBy   User             @relation("TaskCreator", fields: [createdById], references: [id])
+  assignedTo  User?            @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  comments    Comment[]        @relation("CommentTask")
+  taskAssignments TaskAssignment[] @relation("TaskAssignmentTask")
+  progressUpdates ProgressUpdate[] @relation("ProgressUpdateTask")
+  activityLogs    ActivityLog[]     @relation("ActivityLogTask")
+
+  @@index([createdById])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([priority])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+
+  task Task @relation("CommentTask", fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation("CommentUser", fields: [userId], references: [id])
+
+  @@index([taskId])
+  @@index([userId])
+}
+
+model TaskAssignment {
+  id                   String   @id @default(cuid())
+  taskId               String
+  userId               String
+  assignedById         String
+  completionPercentage Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  task       Task @relation("TaskAssignmentTask", fields: [taskId], references: [id], onDelete: Cascade)
+  user       User @relation("TaskAssignmentUser", fields: [userId], references: [id])
+  assignedBy User @relation("TaskAssignmentAssignedBy", fields: [assignedById], references: [id])
+
+  @@unique([taskId, userId])
+  @@map("task_assignments")
+}
+
+model ProgressUpdate {
+  id         String   @id @default(cuid())
+  taskId     String
+  userId     String
+  comment    String?
+  percentage Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  task Task @relation("ProgressUpdateTask", fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation("ProgressUpdateUser", fields: [userId], references: [id])
+
+  @@map("progress_updates")
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  task Task @relation("ActivityLogTask", fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation("ActivityLogUser", fields: [userId], references: [id])
+
+  @@map("activity_logs")
+}

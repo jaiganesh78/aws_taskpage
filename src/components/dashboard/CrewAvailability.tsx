@@ -31,7 +31,7 @@ export function CrewAvailability({ members, tasks }: CrewAvailabilityProps) {
         <Users size={14} className="text-aws-orange" />
         Crew Availability
       </h3>
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         {sorted.map((member, i) => {
           const isAvailable = !activeTaskIds.has(member.id);
           return (
@@ -40,7 +40,7 @@ export function CrewAvailability({ members, tasks }: CrewAvailabilityProps) {
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.03 }}
-              className="flex items-center gap-3 py-1.5 px-2 rounded-lg"
+              className="grid grid-cols-[auto_1fr_auto] gap-2 items-center py-1.5 px-2 rounded-lg"
             >
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
@@ -48,14 +48,14 @@ export function CrewAvailability({ members, tasks }: CrewAvailabilityProps) {
               >
                 {getInitials(member.name)}
               </div>
-              <span className="text-xs font-medium text-aws-slate whitespace-nowrap">{member.name}</span>
+              <span className="text-xs font-medium text-aws-slate truncate">{member.name}</span>
               {isAvailable ? (
-                <span className="flex items-center gap-1 text-[11px] font-semibold text-success flex-shrink-0">
+                <span className="flex items-center gap-1 text-[11px] font-semibold text-success whitespace-nowrap justify-self-start">
                   <CheckCircle2 size={12} />
                   Available
                 </span>
               ) : (
-                <span className="flex items-center gap-1 text-[11px] font-semibold text-error flex-shrink-0">
+                <span className="flex items-center gap-1 text-[11px] font-semibold text-error whitespace-nowrap justify-self-start">
                   <XCircle size={12} />
                   Not Available
                 </span>

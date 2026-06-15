@@ -69,6 +69,7 @@ export function Sidebar() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
+                className="flex-1"
               >
                 <div className="text-sm font-bold text-aws-slate leading-tight">AWS SBG REC</div>
                 <div className="text-[10px] text-aws-gray-500 font-medium">Task Operations</div>
@@ -120,15 +121,31 @@ export function Sidebar() {
                 </motion.div>
               );
             })}
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: navItems.length * 0.1 }}
+            >
+              <button
+                onClick={() => setCollapsed(!collapsed)}
+                className={cn(
+                  'flex items-center w-full gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group',
+                  collapsed ? 'justify-center' : '',
+                  'text-aws-gray-400 hover:text-aws-slate hover:bg-aws-gray-50',
+                )}
+                title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              >
+                <motion.div
+                  animate={{ rotate: collapsed ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex-shrink-0"
+                >
+                  <Menu size={20} />
+                </motion.div>
+                {!collapsed && <span className="text-sm whitespace-nowrap">Collapse Sidebar</span>}
+              </button>
+            </motion.div>
           </nav>
-
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex items-center gap-3 px-5 py-4 border-t border-aws-gray-100 text-aws-gray-400 hover:text-aws-slate transition-colors"
-          >
-            <Menu size={18} />
-            {!collapsed && <span className="text-sm">Collapse</span>}
-          </button>
 
         </motion.div>
       </aside>

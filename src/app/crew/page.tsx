@@ -10,7 +10,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { CrewTaskCard } from '@/components/crew/CrewTaskCard';
 import { tasks as initialTasks } from '@/lib/mockData';
 import type { Task, TaskStatus } from '@/lib/types';
-import { ClipboardList, CheckCircle2, Clock } from 'lucide-react';
+import { ClipboardList, CheckCircle2, Clock, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const CURRENT_USER_ID = 'c5';
@@ -21,7 +21,7 @@ export default function CrewDashboard() {
 
   const myTasks = useMemo(() =>
     tasks.filter(t => t.assignedTo?.id === CURRENT_USER_ID),
-  [tasks]);
+    [tasks]);
 
   const stats = useMemo(() => ({
     total: myTasks.length,
@@ -41,25 +41,32 @@ export default function CrewDashboard() {
 
   const priorityTasks = useMemo(() =>
     myTasks.filter(t => (t.priority === 'high' || t.priority === 'critical') && t.status !== 'completed'),
-  [myTasks]);
+    [myTasks]);
+
+  const upcomingDeadlines = useMemo(() =>
+    myTasks
+      .filter(t => t.status !== 'completed')
+      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+      .slice(0, 4),
+    [myTasks]);
 
   const handleStatusUpdate = (taskId: string, status: TaskStatus) => {
     setTasks(prev => prev.map(t =>
       t.id === taskId
         ? {
-            ...t,
-            status,
-            completionPercentage: status === 'completed' ? 100 : t.completionPercentage,
-            completedAt: status === 'completed' ? new Date().toISOString() : t.completedAt,
-            updatedAt: new Date().toISOString(),
-          }
+          ...t,
+          status,
+          completionPercentage: status === 'completed' ? 100 : t.completionPercentage,
+          completedAt: status === 'completed' ? new Date().toISOString() : t.completedAt,
+          updatedAt: new Date().toISOString(),
+        }
         : t,
     ));
   };
 
   const displayTasks = filter === 'week' ? dueThisWeek
     : filter === 'priority' ? priorityTasks
-    : myTasks;
+      : myTasks;
 
   const tabs = [
     { key: 'all' as const, label: 'My Tasks', count: myTasks.length },
@@ -120,10 +127,10 @@ export default function CrewDashboard() {
             {displayTasks.length > 0 ? (
               displayTasks.map(task => (
                 <CrewTaskCard
-                    key={task.id}
-                    task={task}
-                    onStatusUpdate={handleStatusUpdate}
-                  />
+                  key={task.id}
+                  task={task}
+                  onStatusUpdate={handleStatusUpdate}
+                />
               ))
             ) : (
               <div className="col-span-2 text-center py-12 text-aws-gray-400 text-sm">
@@ -133,9 +140,58 @@ export default function CrewDashboard() {
           </div>
         </GlassCard>
 
-
+        {/* Upcoming Deadlines — below tasks */}
+        <GlassCard>
+          <h3 className="text-sm font-semibold text-aws-slate mb-4 flex items-center gap-2">
+            <Calendar size={14} className="text-aws-orange" />
+            Upcoming Deadlines
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            {upcomingDeadlines.length > 0 ? upcomingDeadlines.map((task, i) => {
+              const daysLeft = Math.ceil((new Date(task.dueDate).getTime() - Date.now()) / 86400000);
+              const isUrgent = daysLeft <= 2;
+              return (
+                <motion.div
+                  key={task.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.08 }}
+                  className="p-3 rounded-xl border"
+                  style={{
+                    borderColor: isUrgent ? 'rgba(239,68,68,0.25)' : 'rgba(0,0,0,0.06)',
+                    background: isUrgent ? 'rgba(239,68,68,0.04)' : 'rgba(0,0,0,0.015)',
+                  }}
+                >
+                  <div className="flex items-start gap-2 mb-2">
+                    <div
+                      className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ background: isUrgent ? 'rgba(239,68,68,0.12)' : 'rgba(255,153,0,0.1)' }}
+                    >
+                      <Calendar size={13} style={{ color: isUrgent ? '#EF4444' : '#FF9900' }} />
+                    </div>
+                    <span
+                      className="text-xs font-semibold text-aws-slate leading-tight"
+                      style={{ wordBreak: 'break-word' }}
+                    >
+                      {task.name}
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-medium" style={{ color: isUrgent ? '#EF4444' : '#6B7280' }}>
+                    {daysLeft === 0 ? 'Due today' : daysLeft < 0 ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d left`}
+                  </div>
+                  <div className="text-[10px] text-aws-gray-400 mt-0.5">
+                    {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </div>
+                </motion.div>
+              );
+            }) : (
+              <div className="col-span-4 text-center py-6 text-aws-gray-400 text-sm">
+                No upcoming deadlines
+              </div>
+            )}
+          </div>
+        </GlassCard>
       </div>
     </DashboardLayout>
   );
 }
-i
