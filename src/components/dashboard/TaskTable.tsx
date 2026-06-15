@@ -1,19 +1,17 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PriorityBadge } from '@/components/ui/PriorityBadge';
-import { ProgressBar } from '@/components/ui/ProgressBar';
-import { cn, formatDate, isOverdue, getInitials } from '@/lib/utils';
+import { cn, formatDate, isOverdue, getInitials, getOverdueDays, getDelayText } from '@/lib/utils';
 import type { Task, TaskCategory, Priority, TaskStatus } from '@/lib/types';
 import { CATEGORIES, PRIORITIES, STATUSES } from '@/lib/types';
 import {
   Search,
   SlidersHorizontal,
   ArrowUpDown,
-  Edit3,
   Trash2,
   ChevronDown,
   Clock,
@@ -26,35 +24,17 @@ interface TaskTableProps {
   tasks: Task[];
   onStatusUpdate: (taskId: string, status: TaskStatus) => void;
   onDelete: (taskId: string) => void;
-  onProgressUpdate?: (taskId: string, progress: number) => void;
 }
 
-export function TaskTable({ tasks, onStatusUpdate, onDelete, onProgressUpdate }: TaskTableProps) {
+export function TaskTable({ tasks, onStatusUpdate, onDelete }: TaskTableProps) {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<TaskCategory | 'all'>('all');
   const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | 'week'>('all');
   const [sortBy, setSortBy] = useState<'dueDate' | 'priority' | 'name'>('dueDate');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showFilters, setShowFilters] = useState(false);
-  const [progressTaskId, setProgressTaskId] = useState<string | null>(null);
-  const [progressValue, setProgressValue] = useState('');
-  const progressInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (progressTaskId) {
-      setTimeout(() => progressInputRef.current?.focus(), 50);
-    }
-  }, [progressTaskId]);
-
-  const handleProgressConfirm = (taskId: string) => {
-    const val = parseInt(progressValue, 10);
-    if (!isNaN(val) && val >= 0 && val <= 100) {
-      onProgressUpdate?.(taskId, val);
-    }
-    setProgressTaskId(null);
-    setProgressValue('');
-  };
 
   const filtered = useMemo(() => {
     return tasks
@@ -64,6 +44,12 @@ export function TaskTable({ tasks, onStatusUpdate, onDelete, onProgressUpdate }:
         if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
         if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
         if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+        if (dateFilter === 'week') {
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          const taskDate = new Date(t.dueDate);
+          if (taskDate < weekAgo || taskDate > new Date()) return false;
+        }
         return true;
       })
       .sort((a, b) => {
@@ -75,7 +61,7 @@ export function TaskTable({ tasks, onStatusUpdate, onDelete, onProgressUpdate }:
         }
         return a.name.localeCompare(b.name) * dir;
       });
-  }, [tasks, search, categoryFilter, priorityFilter, statusFilter, sortBy, sortDir]);
+  }, [tasks, search, categoryFilter, priorityFilter, statusFilter, dateFilter, sortBy, sortDir]);
 
   const toggleSort = (field: 'dueDate' | 'priority' | 'name') => {
     if (sortBy === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -108,7 +94,7 @@ export function TaskTable({ tasks, onStatusUpdate, onDelete, onProgressUpdate }:
         >
           <SlidersHorizontal size={14} />
           Filters
-          {(categoryFilter !== 'all' || priorityFilter !== 'all' || statusFilter !== 'all') && (
+          {(categoryFilter !== 'all' || priorityFilter !== 'all' || statusFilter !== 'all' || dateFilter !== 'all') && (
             <span className="w-2 h-2 rounded-full bg-aws-orange" />
           )}
         </button>
@@ -157,7 +143,18 @@ export function TaskTable({ tasks, onStatusUpdate, onDelete, onProgressUpdate }:
                 </select>
               </div>
               <button
-                onClick={() => { setCategoryFilter('all'); setPriorityFilter('all'); setStatusFilter('all'); }}
+                onClick={() => setDateFilter(d => d === 'all' ? 'week' : 'all')}
+                className={cn(
+                  'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all border',
+                  dateFilter === 'week'
+                    ? 'bg-aws-orange/8 border-aws-orange/30 text-aws-orange'
+                    : 'border-aws-gray-200 text-aws-gray-500 hover:border-aws-gray-300',
+                )}
+              >
+                <Clock size={12} /> This Week
+              </button>
+              <button
+                onClick={() => { setCategoryFilter('all'); setPriorityFilter('all'); setStatusFilter('all'); setDateFilter('all'); }}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs text-aws-gray-500 hover:text-aws-slate hover:bg-aws-gray-50 transition-all"
               >
                 <X size={12} /> Clear
@@ -191,7 +188,6 @@ export function TaskTable({ tasks, onStatusUpdate, onDelete, onProgressUpdate }:
                 </button>
               </th>
               <th className="text-left text-xs font-medium text-aws-gray-500 pb-3 pr-4">Status</th>
-              <th className="text-left text-xs font-medium text-aws-gray-500 pb-3 pr-4 hidden lg:table-cell">Progress</th>
               <th className="text-right text-xs font-medium text-aws-gray-500 pb-3">Actions</th>
             </tr>
           </thead>
@@ -250,7 +246,14 @@ export function TaskTable({ tasks, onStatusUpdate, onDelete, onProgressUpdate }:
                   </td>
                   <td className="py-3 pr-4">
                     <div className="relative group/status">
-                      <StatusBadge status={task.status} />
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <StatusBadge status={task.status} />
+                        {task.status === 'completed' && getOverdueDays(task.dueDate, task.completedAt) > 0 && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-warning/10 text-warning whitespace-nowrap">
+                            {getDelayText(task.dueDate, task.completedAt)}
+                          </span>
+                        )}
+                      </div>
                       <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-aws-gray-100 p-1 opacity-0 invisible group-hover/status:opacity-100 group-hover/status:visible transition-all z-10 min-w-[140px]">
                         {quickStatuses.map(s => (
                           <button
@@ -267,59 +270,7 @@ export function TaskTable({ tasks, onStatusUpdate, onDelete, onProgressUpdate }:
                       </div>
                     </div>
                   </td>
-                  <td className="py-3 pr-4 hidden lg:table-cell relative">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProgressTaskId(progressTaskId === task.id ? null : task.id);
-                        setProgressValue(String(task.completionPercentage));
-                      }}
-                      className="w-full text-left"
-                    >
-                      <ProgressBar value={task.completionPercentage} size="sm" />
-                    </button>
-                    {progressTaskId === task.id && (
-                      <div
-                        className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-aws-gray-100 p-2 z-20 min-w-[160px]"
-                        style={{ borderColor: 'rgba(0,0,0,0.1)' }}
-                      >
-                        <div className="flex items-center gap-1.5 mb-1.5">
-                          <input
-                            ref={progressInputRef}
-                            type="number"
-                            min={0}
-                            max={100}
-                            value={progressValue}
-                            onChange={e => setProgressValue(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') handleProgressConfirm(task.id);
-                              if (e.key === 'Escape') { setProgressTaskId(null); setProgressValue(''); }
-                            }}
-                            className="w-full border rounded-md px-2 py-1 text-xs font-bold text-aws-slate outline-none"
-                            style={{ borderColor: 'rgba(0,0,0,0.15)' }}
-                            placeholder="0–100"
-                          />
-                          <span className="text-xs text-aws-gray-400 font-medium">%</span>
-                        </div>
-                        <div className="flex gap-1">
-                          {[0, 25, 50, 75, 100].map(v => (
-                            <button
-                              key={v}
-                              type="button"
-                              onClick={() => { setProgressValue(String(v)); handleProgressConfirm(task.id); }}
-                              className="flex-1 py-0.5 rounded text-[10px] font-semibold border transition-all"
-                              style={{
-                                borderColor: 'rgba(0,0,0,0.1)',
-                                color: '#6B7280',
-                              }}
-                            >
-                              {v}%
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </td>
+
                   <td className="py-3 text-right">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button

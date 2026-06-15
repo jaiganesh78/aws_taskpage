@@ -44,3 +44,17 @@ export function getInitials(name: string): string {
     .toUpperCase()
     .slice(0, 2);
 }
+
+export function getOverdueDays(dueDate: string, completedAt?: string | null): number {
+  const due = new Date(dueDate);
+  const end = completedAt ? new Date(completedAt) : new Date();
+  const diff = end.getTime() - due.getTime();
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+}
+
+export function getDelayText(dueDate: string, completedAt?: string | null): string {
+  const days = getOverdueDays(dueDate, completedAt);
+  if (days === 0) return '';
+  if (completedAt) return `Completed ${days} day${days === 1 ? '' : 's'} late`;
+  return `Overdue by ${days} day${days === 1 ? '' : 's'}`;
+}

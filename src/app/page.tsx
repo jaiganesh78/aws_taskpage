@@ -9,33 +9,22 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { TaskAssignmentForm } from '@/components/dashboard/TaskAssignmentForm';
 import { TaskTable } from '@/components/dashboard/TaskTable';
 import { UpcomingDeadlines } from '@/components/dashboard/UpcomingDeadlines';
-import { HighPriorityTasks } from '@/components/dashboard/HighPriorityTasks';
+
 import { OverdueTasks } from '@/components/dashboard/OverdueTasks';
-import { RecentlyCompleted } from '@/components/dashboard/RecentlyCompleted';
 import { CrewAvailability } from '@/components/dashboard/CrewAvailability';
-import { EventReadiness } from '@/components/dashboard/EventReadiness';
-import { tasks as initialTasks, crewMembers, events } from '@/lib/mockData';
+import { tasks as initialTasks, crewMembers } from '@/lib/mockData';
+
 import type { Task, TaskStatus, TaskCategory, Priority, CrewMember } from '@/lib/types';
-import {
-  ClipboardList,
-  UserCheck,
-  CheckCircle2,
-  Clock,
-  TrendingUp,
-} from 'lucide-react';
+import { UserCheck, CheckCircle2, Clock } from 'lucide-react';
 
 export default function CoreDashboard() {
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const stats = useMemo(() => ({
-    total: tasks.length,
     assigned: tasks.filter(t => t.assignedTo !== null).length,
     completed: tasks.filter(t => t.status === 'completed').length,
     pending: tasks.filter(t => t.status !== 'completed').length,
-    completionRate: tasks.length > 0
-      ? Math.round((tasks.filter(t => t.status === 'completed').length / tasks.length) * 100)
-      : 0,
   }), [tasks]);
 
   const handleAssign = (data: {
@@ -43,6 +32,7 @@ export default function CoreDashboard() {
     category: TaskCategory;
     priority: Priority;
     assignedTo: CrewMember;
+    startDate: string;
     dueDate: string;
     notes: string;
   }) => {
@@ -54,6 +44,7 @@ export default function CoreDashboard() {
       status: 'assigned',
       assignedTo: data.assignedTo,
       assignedBy: crewMembers[5],
+      startDate: data.startDate ? new Date(data.startDate).toISOString() : new Date().toISOString(),
       dueDate: new Date(data.dueDate).toISOString(),
       notes: data.notes,
       completionPercentage: 0,
@@ -85,31 +76,12 @@ export default function CoreDashboard() {
     setRefreshKey(k => k + 1);
   };
 
-  const handleProgressUpdate = (taskId: string, progress: number) => {
-    setTasks(prev => prev.map(t =>
-      t.id === taskId
-        ? {
-            ...t,
-            completionPercentage: progress,
-            status: progress === 100 ? 'completed' :
-                    progress > 0 && t.status === 'yet_to_start' ? 'in_progress' :
-                    t.status,
-            completedAt: progress === 100 ? new Date().toISOString() : t.completedAt,
-            updatedAt: new Date().toISOString(),
-          }
-        : t,
-    ));
-    setRefreshKey(k => k + 1);
-  };
-
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <Header
           title="Task Assignment Dashboard"
           subtitle="Core Team Operations — AWS SBG REC"
-          eventName={events[0].name}
-          eventStatus={events[0].status}
         />
 
         <motion.div
@@ -117,14 +89,8 @@ export default function CoreDashboard() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
-          className="grid grid-cols-2 lg:grid-cols-5 gap-3"
+          className="grid grid-cols-1 lg:grid-cols-3 gap-2.5"
         >
-          <StatCard
-            label="Total Tasks"
-            value={stats.total}
-            icon={<ClipboardList size={16} />}
-            color="slate"
-          />
           <StatCard
             label="Assigned"
             value={stats.assigned}
@@ -143,34 +109,15 @@ export default function CoreDashboard() {
             icon={<Clock size={16} />}
             color="warning"
           />
-          <StatCard
-            label="Completion Rate"
-            value={stats.completionRate}
-            suffix="%"
-            icon={<TrendingUp size={16} />}
-            color="orange"
-            className="col-span-2 lg:col-span-1"
-          />
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-          <TaskAssignmentForm onAssign={handleAssign} />
-          <div className="space-y-4">
-            <UpcomingDeadlines tasks={tasks} />
-            <EventReadiness tasks={tasks} />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <HighPriorityTasks tasks={tasks} />
-          <OverdueTasks tasks={tasks} />
-          <RecentlyCompleted tasks={tasks} />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div className="lg:col-span-2 space-y-3">
+            <TaskAssignmentForm onAssign={handleAssign} />
+            <OverdueTasks tasks={tasks} />
             <CrewAvailability members={crewMembers} tasks={tasks} />
           </div>
+          <UpcomingDeadlines tasks={tasks} />
         </div>
 
         <SectionHeader
@@ -182,7 +129,6 @@ export default function CoreDashboard() {
           tasks={tasks}
           onStatusUpdate={handleStatusUpdate}
           onDelete={handleDelete}
-          onProgressUpdate={handleProgressUpdate}
         />
       </div>
     </DashboardLayout>

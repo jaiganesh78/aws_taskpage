@@ -22,6 +22,7 @@ export interface Task {
   status: TaskStatus;
   assignedTo: CrewMember | null;
   assignedBy: CrewMember | null;
+  startDate: string;
   dueDate: string;
   notes: string;
   completionPercentage: number;

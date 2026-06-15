@@ -18,7 +18,7 @@ export function UpcomingDeadlines({ tasks }: UpcomingDeadlinesProps) {
     .slice(0, 5);
 
   return (
-    <GlassCard>
+    <GlassCard className="h-full">
       <h3 className="text-sm font-semibold text-aws-slate mb-3 flex items-center gap-2">
         <Calendar size={14} className="text-aws-orange" />
         Upcoming Deadlines

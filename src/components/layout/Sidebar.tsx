@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
   Users,
-  BarChart3,
   Menu,
   X,
   ChevronRight,
@@ -18,7 +17,6 @@ import {
 const navItems = [
   { href: '/', label: 'Task Assignment', icon: LayoutDashboard, color: '#FF9900' },
   { href: '/crew', label: 'Crew Dashboard', icon: Users, color: '#232F3E' },
-  { href: '/analytics', label: 'Analytics', icon: BarChart3, color: '#8B5CF6' },
 ];
 
 export function Sidebar() {
@@ -132,25 +130,6 @@ export function Sidebar() {
             {!collapsed && <span className="text-sm">Collapse</span>}
           </button>
 
-          {!collapsed && (
-            <div className="px-4 pb-4">
-              <div className="glass-card rounded-xl p-4 bg-gradient-to-br from-aws-orange/[0.04] to-transparent">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-aws-orange animate-pulse-soft" />
-                  <span className="text-xs font-medium text-aws-orange">Live Event</span>
-                </div>
-                <p className="text-xs text-aws-gray-600 leading-relaxed">
-                  AWS Cloud Summit 2026
-                </p>
-                <div className="mt-2 flex items-center gap-1.5">
-                  <div className="flex-1 h-1 rounded-full bg-aws-gray-100">
-                    <div className="h-full w-[65%] rounded-full bg-aws-orange" />
-                  </div>
-                  <span className="text-[10px] font-medium text-aws-gray-500">65%</span>
-                </div>
-              </div>
-            </div>
-          )}
         </motion.div>
       </aside>
 
