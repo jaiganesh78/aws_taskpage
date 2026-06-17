@@ -8,34 +8,43 @@ export class UserContextGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const userIdHeader = request.headers['x-user-id'];
+    const isProduction = process.env.NODE_ENV === 'production';
 
-    let user: { id: string; role: string; name: string } | null = null;
+    let user: { id: string; role: string; name: string; isActive: boolean } | null = null;
 
     if (userIdHeader) {
       user = await this.prisma.user.findUnique({
         where: { id: String(userIdHeader) },
-        select: { id: true, role: true, name: true },
+        select: { id: true, role: true, name: true, isActive: true },
       });
       if (!user) {
         throw new UnauthorizedException(`User context not found for ID: ${userIdHeader}`);
       }
+      if (!user.isActive) {
+        throw new UnauthorizedException(`User context is inactive: ${userIdHeader}`);
+      }
     } else {
+      if (isProduction) {
+        throw new UnauthorizedException('x-user-id header is required in production mode');
+      }
+
       // Fallback for developer convenience and seeding verification
-      // Pick the first CORE user (Admin) or fallback to any first user
+      // Pick the first active CORE user (Admin) or fallback to any first active user
       user = await this.prisma.user.findFirst({
-        where: { role: 'core' },
-        select: { id: true, role: true, name: true },
+        where: { role: 'core', isActive: true },
+        select: { id: true, role: true, name: true, isActive: true },
       });
 
       if (!user) {
         user = await this.prisma.user.findFirst({
-          select: { id: true, role: true, name: true },
+          where: { isActive: true },
+          select: { id: true, role: true, name: true, isActive: true },
         });
       }
     }
 
     if (!user) {
-      throw new UnauthorizedException('No user identity exists in the database. Please run migrations and seed.');
+      throw new UnauthorizedException('No active user identity exists in the database. Please run migrations and seed.');
     }
 
     request.user = {

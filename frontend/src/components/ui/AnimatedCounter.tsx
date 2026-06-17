@@ -17,7 +17,7 @@ export function AnimatedCounter({ value, duration = 1.5, decimals = 0 }: Animate
   useEffect(() => {
     if (!isInView) return;
 
-    let start = 0;
+    const start = 0;
     const end = value;
     const increment = end / (duration * 60);
     let current = start;

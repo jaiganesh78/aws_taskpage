@@ -55,7 +55,7 @@ export function HighPriorityTasks({ tasks }: HighPriorityTasksProps) {
               )}
             </div>
             <div className="mt-1.5 ml-3.5">
-              <ProgressBar value={task.completionPercentage} size="sm" />
+              <ProgressBar value={task.progress} size="sm" />
             </div>
           </motion.div>
         ))}

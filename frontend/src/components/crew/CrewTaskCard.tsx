@@ -65,13 +65,13 @@ export function CrewTaskCard({ task, onStatusUpdate }: CrewTaskCardProps) {
             <PriorityBadge priority={task.priority} />
           </div>
 
-          {/* ── Assigned by ───────────────────────────── */}
-          {task.assignedBy && (
+          {/* ── Created/Assigned by ────────────────────────── */}
+          {task.createdBy && (
             <div className="flex items-center gap-1.5 mb-2 text-xs text-aws-gray-500">
               <User size={12} className="flex-shrink-0" />
               <span>Assigned by:</span>
               <span className="font-medium text-aws-gray-600 truncate">
-                {task.assignedBy.name}
+                {task.createdBy.name}
               </span>
             </div>
           )}

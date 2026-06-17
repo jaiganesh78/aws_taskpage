@@ -5,15 +5,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { cn } from '@/lib/utils';
 import {
-  CATEGORIES,
-  TASKS_BY_CATEGORY,
-  PRIORITIES,
   type TaskCategory,
   type Priority,
   type CrewMember,
+  CATEGORIES,
+  PRIORITIES,
+  TASKS_BY_CATEGORY,
 } from '@/lib/types';
-import { crewMembers as initialCrew } from '@/lib/mockData';
-import { Send, User, Tag, AlertTriangle, Calendar, FileText, Plus, Check, Search, Trash2, ChevronDown } from 'lucide-react';
+import { useUser } from '@/lib/user-context';
+import { Send, User, Tag, AlertTriangle, Calendar, FileText, Plus, Check, Search, ChevronDown } from 'lucide-react';
 
 interface TaskAssignmentFormProps {
   onAssign: (data: {
@@ -27,12 +27,9 @@ interface TaskAssignmentFormProps {
   }) => void;
 }
 
-let nextCrewId = 20;
-
 export function TaskAssignmentForm({ onAssign }: TaskAssignmentFormProps) {
-  const [crewList, setCrewList] = useState<CrewMember[]>(initialCrew);
-  const [newCrewName, setNewCrewName] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const { users } = useUser();
+  const crewList = users.filter(u => u.role === 'crew' && u.isActive);
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [category, setCategory] = useState<TaskCategory>('pre_event');
@@ -68,28 +65,6 @@ export function TaskAssignmentForm({ onAssign }: TaskAssignmentFormProps) {
   );
 
   const selectedMember = crewList.find(m => m.id === assignedTo);
-
-  const handleAddCrew = () => {
-    if (!newCrewName.trim()) return;
-    const id = `c${nextCrewId++}`;
-    const member: CrewMember = {
-      id,
-      name: newCrewName.trim(),
-      role: '',
-      avatar: '',
-      tasksCompleted: 0,
-      totalTasks: 0,
-      completionRate: 0,
-    };
-    setCrewList(prev => [...prev, member]);
-    setNewCrewName('');
-    setShowAddModal(false);
-  };
-
-  const handleRemoveCrew = (id: string) => {
-    setCrewList(prev => prev.filter(m => m.id !== id));
-    if (assignedTo === id) setAssignedTo('');
-  };
 
   const handleSelectCrew = (id: string) => {
     setAssignedTo(id);
@@ -256,37 +231,25 @@ export function TaskAssignmentForm({ onAssign }: TaskAssignmentFormProps) {
                     </div>
                     <div className="max-h-48 overflow-y-auto">
                       {filteredCrew.length > 0 ? filteredCrew.map(m => (
-                        <div
+                        <button
                           key={m.id}
+                          type="button"
+                          onClick={() => handleSelectCrew(m.id)}
                           className={cn(
-                            'flex items-center gap-2 px-3 py-2 transition-colors',
-                            assignedTo === m.id ? 'bg-aws-orange/5' : 'hover:bg-aws-gray-50',
+                            'w-full flex items-center justify-between px-3 py-2 transition-colors text-left',
+                            assignedTo === m.id ? 'bg-aws-orange/5 font-semibold' : 'hover:bg-aws-gray-50',
                           )}
                         >
-                          <button
-                            type="button"
-                            onClick={() => handleSelectCrew(m.id)}
-                            className="flex-1 flex items-center gap-2 text-left"
-                          >
+                          <div className="flex items-center gap-2 min-w-0">
                             <div className="w-6 h-6 rounded-full gradient-slate flex items-center justify-center text-[7px] font-bold text-white flex-shrink-0">
                               {m.name.charAt(0).toUpperCase()}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <span className="text-xs font-medium text-aws-slate truncate block">{m.name}</span>
-                            </div>
-                            {assignedTo === m.id && (
-                              <Check size={13} className="text-aws-orange flex-shrink-0" />
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveCrew(m.id)}
-                            className="w-6 h-6 rounded-lg flex items-center justify-center text-aws-gray-400 hover:text-error hover:bg-error/5 transition-all flex-shrink-0"
-                            title="Remove crew member"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
+                            <span className="text-xs font-medium text-aws-slate truncate block">{m.name}</span>
+                          </div>
+                          {assignedTo === m.id && (
+                            <Check size={13} className="text-aws-orange flex-shrink-0 ml-2" />
+                          )}
+                        </button>
                       )) : (
                         <div className="px-3 py-6 text-center text-xs text-aws-gray-400">
                           No crew members found
@@ -297,14 +260,6 @@ export function TaskAssignmentForm({ onAssign }: TaskAssignmentFormProps) {
                 )}
               </AnimatePresence>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowAddModal(true)}
-              className="px-3 py-2 rounded-lg border border-aws-gray-200 text-aws-orange hover:bg-aws-orange/5 transition-all flex items-center gap-1 text-xs font-medium"
-              title="Add crew member"
-            >
-              <Plus size={14} />
-            </button>
           </div>
           {selectedMember && (
             <div className="flex items-center gap-1.5 text-[11px] text-aws-gray-500">
@@ -312,63 +267,6 @@ export function TaskAssignmentForm({ onAssign }: TaskAssignmentFormProps) {
             </div>
           )}
         </div>
-
-        {/* Add Crew Modal */}
-        <AnimatePresence>
-          {showAddModal && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50"
-                onClick={() => setShowAddModal(false)}
-              />
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-                className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-sm"
-              >
-                <div className="glass-card-strong rounded-xl p-5 mx-4">
-                  <h4 className="text-sm font-semibold text-aws-slate mb-4">Add Crew Member</h4>
-                  <input
-                    type="text"
-                    value={newCrewName}
-                    onChange={e => setNewCrewName(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleAddCrew(); }}
-                    placeholder="Enter crew name..."
-                    className="w-full px-3 py-2 rounded-lg border border-aws-gray-200 bg-white text-sm text-aws-slate placeholder-aws-gray-400 focus:outline-none focus:ring-2 focus:ring-aws-orange/20 focus:border-aws-orange/30 transition-all mb-4"
-                    autoFocus
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleAddCrew}
-                      disabled={!newCrewName.trim()}
-                      className={cn(
-                        'flex-1 py-2 rounded-lg text-sm font-semibold transition-all',
-                        newCrewName.trim()
-                          ? 'gradient-orange text-white shadow-lg shadow-aws-orange/20'
-                          : 'bg-aws-gray-100 text-aws-gray-400 cursor-not-allowed',
-                      )}
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setShowAddModal(false); setNewCrewName(''); }}
-                      className="flex-1 py-2 rounded-lg text-sm font-semibold border border-aws-gray-200 text-aws-gray-500 hover:bg-aws-gray-50 transition-all"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
           <div className="space-y-1.5">

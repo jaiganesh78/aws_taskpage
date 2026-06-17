@@ -12,6 +12,20 @@ export class TasksService {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(dto: CreateTaskDto, userId: string) {
+    if (dto.assignedToId) {
+      const targetUser = await this.prisma.user.findUnique({
+        where: { id: dto.assignedToId },
+        select: {
+          id: true,
+          isActive: true,
+          role: true,
+        },
+      });
+      if (!targetUser || !targetUser.isActive || targetUser.role !== 'crew') {
+        throw new BadRequestException('Tasks can only be assigned to active crew members.');
+      }
+    }
+
     const task = await this.prisma.$transaction(async (tx) => {
       // 1. Determine default status based on assignment
       const status = dto.assignedToId ? TaskStatus.assigned : TaskStatus.not_assigned;
@@ -63,6 +77,20 @@ export class TasksService {
   }
 
   async update(id: string, dto: UpdateTaskDto, userId: string) {
+    if (dto.assignedToId) {
+      const targetUser = await this.prisma.user.findUnique({
+        where: { id: dto.assignedToId },
+        select: {
+          id: true,
+          isActive: true,
+          role: true,
+        },
+      });
+      if (!targetUser || !targetUser.isActive || targetUser.role !== 'crew') {
+        throw new BadRequestException('Tasks can only be assigned to active crew members.');
+      }
+    }
+
     return this.prisma.$transaction(async (tx) => {
       const task = await tx.task.findFirst({
         where: { id, isDeleted: false },
@@ -285,18 +313,21 @@ export class TasksService {
             user: { select: { id: true, name: true, avatar: true } },
           },
           orderBy: { createdAt: 'desc' },
+          take: 10,
         },
         progressUpdates: {
           include: {
             user: { select: { id: true, name: true, avatar: true } },
           },
           orderBy: { createdAt: 'desc' },
+          take: 10,
         },
         activityLogs: {
           include: {
             user: { select: { id: true, name: true } },
           },
           orderBy: { createdAt: 'desc' },
+          take: 10,
         },
       },
     });
@@ -330,7 +361,10 @@ export class TasksService {
 
   async findAll(query: TaskQuery) {
     const page = Math.max(1, query.page || 1);
-    const limit = Math.max(1, query.limit || 20);
+    let limit = Math.max(1, query.limit || 20);
+    if (limit > 100) {
+      limit = 100;
+    }
     const skip = (page - 1) * limit;
 
     const whereClause: any = {
@@ -432,7 +466,10 @@ export class TasksService {
     }
 
     const page = Math.max(1, query.page || 1);
-    const limit = Math.max(1, query.limit || 20);
+    let limit = Math.max(1, query.limit || 20);
+    if (limit > 100) {
+      limit = 100;
+    }
     const skip = (page - 1) * limit;
 
     const [total, comments] = await this.prisma.$transaction([
@@ -478,7 +515,7 @@ export class TasksService {
     };
   }
 
-  async getProgressHistory(taskId: string) {
+  async getProgressHistory(taskId: string, query: { page?: number; limit?: number }) {
     const task = await this.prisma.task.findFirst({
       where: { id: taskId, isDeleted: false },
     });
@@ -486,30 +523,52 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    const history = await this.prisma.progressUpdate.findMany({
-      where: { taskId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
+    const page = Math.max(1, query.page || 1);
+    let limit = Math.max(1, query.limit || 20);
+    if (limit > 100) {
+      limit = 100;
+    }
+    const skip = (page - 1) * limit;
+
+    const [total, history] = await this.prisma.$transaction([
+      this.prisma.progressUpdate.count({ where: { taskId } }),
+      this.prisma.progressUpdate.findMany({
+        where: { taskId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+            },
           },
         },
-      },
-    });
+      }),
+    ]);
 
-    return history.map(h => ({
+    const formattedHistory = history.map(h => ({
       id: h.id,
       percentage: h.percentage,
       comment: h.comment,
       createdAt: h.createdAt,
       user: h.user,
     }));
+
+    return {
+      data: formattedHistory,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
-  async getActivityTimeline(taskId: string) {
+  async getActivityTimeline(taskId: string, query: { page?: number; limit?: number }) {
     const task = await this.prisma.task.findFirst({
       where: { id: taskId, isDeleted: false },
     });
@@ -517,19 +576,41 @@ export class TasksService {
       throw new NotFoundException('Task not found');
     }
 
-    return this.prisma.activityLog.findMany({
-      where: { taskId },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            role: true,
+    const page = Math.max(1, query.page || 1);
+    let limit = Math.max(1, query.limit || 20);
+    if (limit > 100) {
+      limit = 100;
+    }
+    const skip = (page - 1) * limit;
+
+    const [total, logs] = await this.prisma.$transaction([
+      this.prisma.activityLog.count({ where: { taskId } }),
+      this.prisma.activityLog.findMany({
+        where: { taskId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+              role: true,
+            },
           },
         },
+      }),
+    ]);
+
+    return {
+      data: logs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
-    });
+    };
   }
 }

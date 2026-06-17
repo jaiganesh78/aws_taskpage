@@ -17,11 +17,11 @@ export function EventReadiness({ tasks }: EventReadinessProps) {
   const getCategoryProgress = (cat: TaskCategory) => {
     const catTasks = tasks.filter(t => t.category === cat);
     if (catTasks.length === 0) return 0;
-    return catTasks.reduce((sum, t) => sum + t.completionPercentage, 0) / catTasks.length;
+    return catTasks.reduce((sum, t) => sum + t.progress, 0) / catTasks.length;
   };
 
   const totalProgress = tasks.length > 0
-    ? tasks.reduce((sum, t) => sum + t.completionPercentage, 0) / tasks.length
+    ? tasks.reduce((sum, t) => sum + t.progress, 0) / tasks.length
     : 0;
 
   return (

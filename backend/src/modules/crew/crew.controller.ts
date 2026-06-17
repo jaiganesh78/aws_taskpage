@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, Query, UseGuards, Put } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Query, UseGuards, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader, ApiQuery } from '@nestjs/swagger';
 import { CrewService } from './crew.service';
 import { CreateCrewDto } from './dto/create-crew.dto';
@@ -31,6 +31,7 @@ export class CrewController {
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({ name: 'sortBy', required: false, enum: ['name', 'createdAt', 'workload'] })
   @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'] })
+  @ApiQuery({ name: 'includeInactive', required: false, type: Boolean })
   @ApiResponse({ status: 200, description: 'List of crew members' })
   findAll(
     @Query('page') page?: number,
@@ -38,6 +39,7 @@ export class CrewController {
     @Query('search') search?: string,
     @Query('sortBy') sortBy?: 'name' | 'createdAt' | 'workload',
     @Query('sortOrder') sortOrder?: 'asc' | 'desc',
+    @Query('includeInactive') includeInactive?: string | boolean,
   ) {
     return this.crewService.findAll({
       page: page ? Number(page) : undefined,
@@ -45,6 +47,7 @@ export class CrewController {
       search,
       sortBy,
       sortOrder,
+      includeInactive: includeInactive === 'true' || includeInactive === true,
     });
   }
 
@@ -56,12 +59,12 @@ export class CrewController {
     return this.crewService.update(id, updateCrewDto);
   }
 
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete a crew member' })
-  @ApiResponse({ status: 200, description: 'Crew member removed successfully' })
-  @ApiResponse({ status: 400, description: 'Crew member has active tasks and cannot be removed' })
+  @Patch(':id/deactivate')
+  @ApiOperation({ summary: 'Deactivate a crew member' })
+  @ApiResponse({ status: 200, description: 'Crew member deactivated successfully' })
+  @ApiResponse({ status: 400, description: 'Crew member has active tasks or is core and cannot be deactivated' })
   @ApiResponse({ status: 404, description: 'Crew member not found' })
-  remove(@Param('id') id: string) {
-    return this.crewService.remove(id);
+  deactivate(@Param('id') id: string) {
+    return this.crewService.deactivate(id);
   }
 }

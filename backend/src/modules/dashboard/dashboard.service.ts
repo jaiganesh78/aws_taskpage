@@ -1,41 +1,53 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { WorkloadService } from '../crew/services/workload.service';
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workloadService: WorkloadService,
+  ) {}
 
   async getSummary() {
     const now = new Date();
 
-    // 1. Get task statistics
-    const tasks = await this.prisma.task.findMany({
-      where: { isDeleted: false },
-      select: {
-        status: true,
-        dueDate: true,
-      },
-    });
-
-    const totalTasks = tasks.length;
-    const completedTasks = tasks.filter(t => t.status === 'completed').length;
-    const activeTasks = totalTasks - completedTasks;
-    const overdueTasks = tasks.filter(t => t.status !== 'completed' && t.dueDate < now).length;
-    const completionRate = totalTasks > 0 ? parseFloat(((completedTasks / totalTasks) * 100).toFixed(2)) : 0;
-
-    // 2. Get crew statistics
-    const crewMembers = await this.prisma.user.findMany({
-      where: { role: 'crew' },
-      include: {
-        assignedTasks: {
-          where: { isDeleted: false },
-          select: {
-            status: true,
-            dueDate: true,
+    // Concurrently fetch counts and data using Promise.all to avoid sequential blocking
+    const [
+      totalTasks,
+      completedTasks,
+      overdueTasks,
+      crewMembers
+    ] = await Promise.all([
+      this.prisma.task.count({
+        where: { isDeleted: false },
+      }),
+      this.prisma.task.count({
+        where: { isDeleted: false, status: 'completed' },
+      }),
+      this.prisma.task.count({
+        where: {
+          isDeleted: false,
+          status: { not: 'completed' },
+          dueDate: { lt: now },
+        },
+      }),
+      this.prisma.user.findMany({
+        where: { role: 'crew', isActive: true }, // Exclude inactive crew members
+        include: {
+          assignedTasks: {
+            where: { isDeleted: false },
+            select: {
+              status: true,
+              dueDate: true,
+            },
           },
         },
-      },
-    });
+      }),
+    ]);
+
+    const activeTasks = totalTasks - completedTasks;
+    const completionRate = totalTasks > 0 ? parseFloat(((completedTasks / totalTasks) * 100).toFixed(2)) : 0;
 
     const totalCrew = crewMembers.length;
     let availableCrew = 0;
@@ -49,9 +61,10 @@ export class DashboardService {
       const activeCount = active.length;
       const overdueCount = overdue.length;
 
-      if (activeCount > 3 || overdueCount > 0) {
+      const workloadStatus = this.workloadService.calculateWorkloadStatus(activeCount, overdueCount);
+      if (workloadStatus === 'overloaded') {
         overloadedCrew++;
-      } else if (activeCount > 0) {
+      } else if (workloadStatus === 'busy') {
         busyCrew++;
       } else {
         availableCrew++;
@@ -72,14 +85,24 @@ export class DashboardService {
   }
 
   async getTaskDistribution() {
-    const tasks = await this.prisma.task.findMany({
-      where: { isDeleted: false },
-      select: {
-        category: true,
-        priority: true,
-        status: true,
-      },
-    });
+    // Perform database-level group counts
+    const [categories, priorities, statuses] = await Promise.all([
+      this.prisma.task.groupBy({
+        by: ['category'],
+        where: { isDeleted: false },
+        _count: { _all: true },
+      }),
+      this.prisma.task.groupBy({
+        by: ['priority'],
+        where: { isDeleted: false },
+        _count: { _all: true },
+      }),
+      this.prisma.task.groupBy({
+        by: ['status'],
+        where: { isDeleted: false },
+        _count: { _all: true },
+      }),
+    ]);
 
     const byCategory: Record<string, number> = { pre_event: 0, during_event: 0, post_event: 0 };
     const byPriority: Record<string, number> = { low: 0, medium: 0, high: 0, critical: 0 };
@@ -93,10 +116,20 @@ export class DashboardService {
       blocked: 0,
     };
 
-    for (const t of tasks) {
-      if (t.category in byCategory) byCategory[t.category]++;
-      if (t.priority in byPriority) byPriority[t.priority]++;
-      if (t.status in byStatus) byStatus[t.status]++;
+    for (const c of categories) {
+      if (c.category in byCategory) {
+        byCategory[c.category] = c._count._all;
+      }
+    }
+    for (const p of priorities) {
+      if (p.priority in byPriority) {
+        byPriority[p.priority] = p._count._all;
+      }
+    }
+    for (const s of statuses) {
+      if (s.status in byStatus) {
+        byStatus[s.status] = s._count._all;
+      }
     }
 
     return {
@@ -179,7 +212,7 @@ export class DashboardService {
   async getWorkloads() {
     const now = new Date();
     const crew = await this.prisma.user.findMany({
-      where: { role: 'crew' },
+      where: { role: 'crew', isActive: true }, // Filter active crew members only
       include: {
         assignedTasks: {
           where: { isDeleted: false },
@@ -201,12 +234,7 @@ export class DashboardService {
       const completedTaskCount = completed.length;
       const overdueTaskCount = overdue.length;
 
-      let workloadStatus: 'available' | 'busy' | 'overloaded' = 'available';
-      if (activeTaskCount > 3 || overdueTaskCount > 0) {
-        workloadStatus = 'overloaded';
-      } else if (activeTaskCount > 0) {
-        workloadStatus = 'busy';
-      }
+      const workloadStatus = this.workloadService.calculateWorkloadStatus(activeTaskCount, overdueTaskCount);
 
       return {
         crewId: m.id,

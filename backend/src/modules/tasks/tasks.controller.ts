@@ -189,18 +189,36 @@ export class TasksController {
   @Get(':id/progress-history')
   @ApiOperation({ summary: 'Get progress updates history for a task (newest first)' })
   @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'List of progress updates' })
   @ApiResponse({ status: 404, description: 'Task not found' })
-  getProgressHistory(@Param('id') id: string) {
-    return this.tasksService.getProgressHistory(id);
+  getProgressHistory(
+    @Param('id') id: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.tasksService.getProgressHistory(id, {
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
   }
 
   @Get(':id/activity')
   @ApiOperation({ summary: 'Get activity timeline history for a task (newest first)' })
   @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'List of activities' })
   @ApiResponse({ status: 404, description: 'Task not found' })
-  getActivityTimeline(@Param('id') id: string) {
-    return this.tasksService.getActivityTimeline(id);
+  getActivityTimeline(
+    @Param('id') id: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.tasksService.getActivityTimeline(id, {
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
   }
 }

@@ -24,9 +24,11 @@ interface TaskTableProps {
   tasks: Task[];
   onStatusUpdate: (taskId: string, status: TaskStatus) => void;
   onDelete: (taskId: string) => void;
+  isCore?: boolean;
+  onRowClick?: (task: Task) => void;
 }
 
-export function TaskTable({ tasks, onStatusUpdate, onDelete }: TaskTableProps) {
+export function TaskTable({ tasks, onStatusUpdate, onDelete, isCore = true, onRowClick }: TaskTableProps) {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<TaskCategory | 'all'>('all');
   const [priorityFilter, setPriorityFilter] = useState<Priority | 'all'>('all');
@@ -188,7 +190,7 @@ export function TaskTable({ tasks, onStatusUpdate, onDelete }: TaskTableProps) {
                 </button>
               </th>
               <th className="text-left text-xs font-medium text-aws-gray-500 pb-3 pr-4">Status</th>
-              <th className="text-right text-xs font-medium text-aws-gray-500 pb-3">Actions</th>
+              {isCore && <th className="text-right text-xs font-medium text-aws-gray-500 pb-3">Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -200,8 +202,9 @@ export function TaskTable({ tasks, onStatusUpdate, onDelete }: TaskTableProps) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ delay: i * 0.03 }}
+                  onClick={() => onRowClick?.(task)}
                   className={cn(
-                    'border-b border-aws-gray-50 group transition-colors hover:bg-aws-gray-50/50',
+                    'border-b border-aws-gray-50 group transition-colors hover:bg-aws-gray-50/50 cursor-pointer',
                     isOverdue(task.dueDate) && task.status !== 'completed' && 'bg-error/[0.02]',
                   )}
                 >
@@ -244,7 +247,7 @@ export function TaskTable({ tasks, onStatusUpdate, onDelete }: TaskTableProps) {
                       {formatDate(task.dueDate)}
                     </span>
                   </td>
-                  <td className="py-3 pr-4">
+                   <td className="py-3 pr-4" onClick={(e) => e.stopPropagation()}>
                     <div className="relative group/status">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <StatusBadge status={task.status} />
@@ -271,16 +274,18 @@ export function TaskTable({ tasks, onStatusUpdate, onDelete }: TaskTableProps) {
                     </div>
                   </td>
 
-                  <td className="py-3 text-right">
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => onDelete(task.id)}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-aws-gray-400 hover:text-error hover:bg-error/5 transition-all"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
+                  {isCore && (
+                    <td className="py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => onDelete(task.id)}
+                          className="w-7 h-7 rounded-lg flex items-center justify-center text-aws-gray-400 hover:text-error hover:bg-error/5 transition-all"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </motion.tr>
               ))}
             </AnimatePresence>

@@ -4,4 +4,5 @@ export interface CrewQuery {
   search?: string;
   sortBy?: 'name' | 'createdAt' | 'workload';
   sortOrder?: 'asc' | 'desc';
+  includeInactive?: boolean;
 }

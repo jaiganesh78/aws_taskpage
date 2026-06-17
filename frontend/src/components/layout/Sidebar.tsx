@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { useUser } from '@/lib/user-context';
 import {
   LayoutDashboard,
   Users,
@@ -14,15 +15,20 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-const navItems = [
-  { href: '/', label: 'Task Assignment', icon: LayoutDashboard, color: '#FF9900' },
-  { href: '/crew', label: 'Crew Dashboard', icon: Users, color: '#232F3E' },
-];
-
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { currentUser } = useUser();
+
+  const navItems = currentUser?.role === 'core'
+    ? [
+        { href: '/', label: 'Task Assignment', icon: LayoutDashboard, color: '#FF9900' },
+        { href: '/crew', label: 'Manage Crew', icon: Users, color: '#232F3E' },
+      ]
+    : [
+        { href: '/', label: 'My Dashboard', icon: LayoutDashboard, color: '#FF9900' },
+      ];
 
   return (
     <>

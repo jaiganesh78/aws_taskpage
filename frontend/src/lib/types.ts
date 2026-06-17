@@ -7,11 +7,17 @@ export type TaskStatus = 'not_assigned' | 'assigned' | 'yet_to_start' | 'in_prog
 export interface CrewMember {
   id: string;
   name: string;
-  role: string;
-  avatar: string;
-  tasksCompleted: number;
-  totalTasks: number;
-  completionRate: number;
+  email: string;
+  role: 'core' | 'crew';
+  avatar: string | null;
+  department: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  activeTaskCount?: number;
+  completedTaskCount?: number;
+  overdueTaskCount?: number;
+  workloadStatus?: 'available' | 'busy' | 'overloaded';
 }
 
 export interface Task {
@@ -21,11 +27,11 @@ export interface Task {
   priority: Priority;
   status: TaskStatus;
   assignedTo: CrewMember | null;
-  assignedBy: CrewMember | null;
-  startDate: string;
+  createdBy: CrewMember;
+  startDate: string | null;
   dueDate: string;
-  notes: string;
-  completionPercentage: number;
+  notes: string | null;
+  progress: number;
   createdAt: string;
   completedAt: string | null;
   updatedAt: string;
@@ -35,8 +41,39 @@ export interface Activity {
   id: string;
   taskId: string;
   action: string;
-  user: string;
-  timestamp: string;
+  userId: string;
+  user?: CrewMember;
+  metadata?: any;
+  createdAt: string;
+}
+
+export interface Comment {
+  id: string;
+  taskId: string;
+  userId: string;
+  message: string;
+  createdAt: string;
+  userName?: string;
+  avatar?: string;
+  user?: {
+    id: string;
+    name: string;
+    avatar: string | null;
+  };
+}
+
+export interface ProgressHistory {
+  id: string;
+  taskId: string;
+  userId: string;
+  percentage: number;
+  comment: string | null;
+  createdAt: string;
+  user?: {
+    id: string;
+    name: string;
+    avatar: string | null;
+  };
 }
 
 export const CATEGORIES: { value: TaskCategory; label: string; color: string }[] = [

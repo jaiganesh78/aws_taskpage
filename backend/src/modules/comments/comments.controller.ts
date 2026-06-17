@@ -22,6 +22,6 @@ export class CommentsController {
   @ApiResponse({ status: 200, description: 'Comment deleted successfully' })
   @ApiResponse({ status: 404, description: 'Comment not found' })
   remove(@Param('id') id: string, @CurrentUser() user: CurrentUserDto) {
-    return this.commentsService.remove(id, user.id);
+    return this.commentsService.remove(id, user.id, user.role);
   }
 }

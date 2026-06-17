@@ -3,6 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { CreateCrewDto } from './dto/create-crew.dto';
 import { UpdateCrewDto } from './dto/update-crew.dto';
 import { CrewQuery } from './interfaces/crew-query.interface';
+import { WorkloadService } from './services/workload.service';
 
 export interface CrewMemberWithWorkload {
   id: string;
@@ -14,12 +15,16 @@ export interface CrewMemberWithWorkload {
   completedTaskCount: number;
   overdueTaskCount: number;
   workloadStatus: 'available' | 'busy' | 'overloaded';
+  isActive: boolean;
   createdAt: Date;
 }
 
 @Injectable()
 export class CrewService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly workloadService: WorkloadService,
+  ) {}
 
   async create(dto: CreateCrewDto): Promise<any> {
     // Check if email already registered
@@ -81,12 +86,20 @@ export class CrewService {
     });
   }
 
-  async remove(id: string): Promise<{ success: boolean }> {
-    const crew = await this.prisma.user.findFirst({
-      where: { id, role: 'crew' },
+  async deactivate(id: string): Promise<{ success: boolean }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
     });
-    if (!crew) {
+    if (!user) {
       throw new NotFoundException(`Crew member not found`);
+    }
+
+    if (user.isActive === false) {
+      throw new BadRequestException('Crew member is already inactive.');
+    }
+
+    if (user.role === 'core') {
+      throw new BadRequestException('Core users cannot be deactivated.');
     }
 
     // Check if any active tasks exist
@@ -99,24 +112,23 @@ export class CrewService {
     });
 
     if (activeTasksCount > 0) {
-      throw new BadRequestException(`Cannot delete crew member. Member has ${activeTasksCount} active tasks assigned.`);
+      throw new BadRequestException(`Cannot deactivate crew member. Member has active tasks assigned.`);
     }
 
-    await this.prisma.$transaction([
-      this.prisma.comment.deleteMany({ where: { userId: id } }),
-      this.prisma.progressUpdate.deleteMany({ where: { userId: id } }),
-      this.prisma.activityLog.deleteMany({ where: { userId: id } }),
-      this.prisma.user.delete({
-        where: { id },
-      }),
-    ]);
+    await this.prisma.user.update({
+      where: { id },
+      data: { isActive: false },
+    });
 
     return { success: true };
   }
 
   async findAll(query: CrewQuery): Promise<{ data: CrewMemberWithWorkload[]; pagination: any }> {
     const page = Math.max(1, query.page || 1);
-    const limit = Math.max(1, query.limit || 20);
+    let limit = Math.max(1, query.limit || 20);
+    if (limit > 100) {
+      limit = 100;
+    }
     const skip = (page - 1) * limit;
     const now = new Date();
 
@@ -131,10 +143,14 @@ export class CrewService {
         }
       : {};
 
-    const whereClause = {
+    const whereClause: any = {
       role: 'crew' as const,
       ...searchFilter,
     };
+
+    if (!query.includeInactive) {
+      whereClause.isActive = true;
+    }
 
     // If sorting by workload, we must pull all matches, calculate status, sort, and slice
     if (query.sortBy === 'workload') {
@@ -160,12 +176,7 @@ export class CrewService {
         const completedTaskCount = completedTasks.length;
         const overdueTaskCount = overdueTasks.length;
 
-        let workloadStatus: 'available' | 'busy' | 'overloaded' = 'available';
-        if (activeTaskCount > 3 || overdueTaskCount > 0) {
-          workloadStatus = 'overloaded';
-        } else if (activeTaskCount > 0) {
-          workloadStatus = 'busy';
-        }
+        const workloadStatus = this.workloadService.calculateWorkloadStatus(activeTaskCount, overdueTaskCount);
 
         return {
           id: m.id,
@@ -177,6 +188,7 @@ export class CrewService {
           completedTaskCount,
           overdueTaskCount,
           workloadStatus,
+          isActive: m.isActive,
           createdAt: m.createdAt,
         };
       });
@@ -240,12 +252,7 @@ export class CrewService {
       const completedTaskCount = completedTasks.length;
       const overdueTaskCount = overdueTasks.length;
 
-      let workloadStatus: 'available' | 'busy' | 'overloaded' = 'available';
-      if (activeTaskCount > 3 || overdueTaskCount > 0) {
-        workloadStatus = 'overloaded';
-      } else if (activeTaskCount > 0) {
-        workloadStatus = 'busy';
-      }
+      const workloadStatus = this.workloadService.calculateWorkloadStatus(activeTaskCount, overdueTaskCount);
 
       return {
         id: m.id,
@@ -257,6 +264,7 @@ export class CrewService {
         completedTaskCount,
         overdueTaskCount,
         workloadStatus,
+        isActive: m.isActive,
         createdAt: m.createdAt,
       };
     });

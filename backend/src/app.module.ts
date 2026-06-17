@@ -7,6 +7,7 @@ import { TasksModule } from './modules/tasks/tasks.module';
 import { CrewModule } from './modules/crew/crew.module';
 import { CommentsModule } from './modules/comments/comments.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     CrewModule,
     CommentsModule,
     DashboardModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [],

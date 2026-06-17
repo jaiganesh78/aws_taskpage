@@ -52,6 +52,7 @@ model User {
   role            UserRole         @default(crew)
   avatar          String?
   department      String?
+  isActive        Boolean          @default(true)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -111,6 +112,7 @@ model Comment {
 
   @@index([taskId])
   @@index([userId])
+  @@index([createdAt])
   @@map("comments")
 }
 
@@ -126,6 +128,7 @@ model ProgressUpdate {
 
   @@index([taskId])
   @@index([userId])
+  @@index([createdAt])
   @@map("progress_updates")
 }
 
@@ -141,5 +144,6 @@ model ActivityLog {
 
   @@index([taskId])
   @@index([userId])
+  @@index([createdAt])
   @@map("activity_logs")
 }
