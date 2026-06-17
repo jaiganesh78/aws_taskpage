@@ -61,6 +61,8 @@ model User {
   comments        Comment[]
   progressUpdates ProgressUpdate[]
   activityLogs    ActivityLog[]
+  workUpdates     WorkUpdate[]
+  reviewDecisions ReviewDecision[]
 
   @@map("users")
 }
@@ -76,6 +78,10 @@ model Task {
   dueDate         DateTime
   notes           String?
   completedAt     DateTime?
+  archivedAt      DateTime?
+  assignedAt      DateTime?
+  submittedAt     DateTime?
+  reviewedAt      DateTime?
   isDeleted       Boolean          @default(false)
   deletedAt       DateTime?
   createdAt       DateTime         @default(now())
@@ -90,6 +96,8 @@ model Task {
   comments        Comment[]
   progressUpdates ProgressUpdate[]
   activityLogs    ActivityLog[]
+  workUpdates     WorkUpdate[]
+  reviewDecisions ReviewDecision[]
 
   @@index([isDeleted])
   @@index([name])
@@ -146,4 +154,58 @@ model ActivityLog {
   @@index([userId])
   @@index([createdAt])
   @@map("activity_logs")
+}
+
+enum ReviewDecisionType {
+  approved
+  changes_requested
+}
+
+model WorkUpdate {
+  id              String           @id @default(cuid())
+  taskId          String
+  task            Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User             @relation(fields: [userId], references: [id])
+  description     String           @db.Text
+  progress        Int
+  createdAt       DateTime         @default(now())
+
+  attachments     WorkAttachment[]
+  reviewDecisions ReviewDecision[]
+
+  @@index([taskId])
+  @@index([userId])
+  @@map("work_updates")
+}
+
+model WorkAttachment {
+  id           String     @id @default(cuid())
+  workUpdateId String
+  workUpdate   WorkUpdate @relation(fields: [workUpdateId], references: [id], onDelete: Cascade)
+  fileName     String
+  fileUrl      String
+  fileType     String
+  fileSize     Int
+  createdAt    DateTime   @default(now())
+
+  @@index([workUpdateId])
+  @@map("work_attachments")
+}
+
+model ReviewDecision {
+  id           String             @id @default(cuid())
+  taskId       String
+  task         Task               @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  reviewerId   String
+  reviewer     User               @relation(fields: [reviewerId], references: [id])
+  workUpdateId String?
+  workUpdate   WorkUpdate?        @relation(fields: [workUpdateId], references: [id], onDelete: SetNull)
+  decision     ReviewDecisionType
+  comment      String             @db.Text
+  createdAt    DateTime           @default(now())
+
+  @@index([taskId])
+  @@index([reviewerId])
+  @@map("review_decisions")
 }
