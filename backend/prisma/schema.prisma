@@ -1,0 +1,145 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  core
+  crew
+}
+
+enum Category {
+  pre_event
+  during_event
+  post_event
+}
+
+enum Priority {
+  low
+  medium
+  high
+  critical
+}
+
+enum TaskStatus {
+  not_assigned
+  assigned
+  yet_to_start
+  in_progress
+  under_review
+  completed
+  blocked
+}
+
+enum ActivityAction {
+  created
+  assigned
+  reassigned
+  status_updated
+  progress_updated
+  comment_added
+  comment_deleted
+  deleted
+}
+
+model User {
+  id              String           @id @default(cuid())
+  email           String           @unique
+  name            String
+  role            UserRole         @default(crew)
+  avatar          String?
+  department      String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  createdTasks    Task[]           @relation("TaskCreator")
+  assignedTasks   Task[]           @relation("TaskAssignee")
+  comments        Comment[]
+  progressUpdates ProgressUpdate[]
+  activityLogs    ActivityLog[]
+
+  @@map("users")
+}
+
+model Task {
+  id              String           @id @default(cuid())
+  name            String
+  category        Category
+  priority        Priority
+  status          TaskStatus       @default(not_assigned)
+  progress        Int              @default(0)
+  startDate       DateTime?
+  dueDate         DateTime
+  notes           String?
+  completedAt     DateTime?
+  isDeleted       Boolean          @default(false)
+  deletedAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  createdById     String
+  createdBy       User             @relation("TaskCreator", fields: [createdById], references: [id])
+
+  assignedToId    String?
+  assignedTo      User?            @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  comments        Comment[]
+  progressUpdates ProgressUpdate[]
+  activityLogs    ActivityLog[]
+
+  @@index([isDeleted])
+  @@index([name])
+  @@index([createdById])
+  @@index([assignedToId])
+  @@index([isDeleted, status, dueDate])
+  @@index([isDeleted, assignedToId, status])
+  @@index([priority])
+  @@map("tasks")
+}
+
+model Comment {
+  id              String           @id @default(cuid())
+  taskId          String
+  task            Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User             @relation(fields: [userId], references: [id])
+  message         String           @db.Text
+  createdAt       DateTime         @default(now())
+
+  @@index([taskId])
+  @@index([userId])
+  @@map("comments")
+}
+
+model ProgressUpdate {
+  id              String           @id @default(cuid())
+  taskId          String
+  task            Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User             @relation(fields: [userId], references: [id])
+  comment         String?          @db.Text
+  percentage      Int              @default(0)
+  createdAt       DateTime         @default(now())
+
+  @@index([taskId])
+  @@index([userId])
+  @@map("progress_updates")
+}
+
+model ActivityLog {
+  id              String           @id @default(cuid())
+  taskId          String
+  task            Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId          String
+  user            User             @relation(fields: [userId], references: [id])
+  action          ActivityAction
+  metadata        Json?            // e.g. {"oldAssigneeId": "c1", "newAssigneeId": "c2"} or {"prevStatus": "in_progress", "newStatus": "blocked"}
+  createdAt       DateTime         @default(now())
+
+  @@index([taskId])
+  @@index([userId])
+  @@map("activity_logs")
+}
