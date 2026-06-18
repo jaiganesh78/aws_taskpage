@@ -48,4 +48,11 @@ export class DashboardController {
   getWorkloads() {
     return this.dashboardService.getWorkloads();
   }
+
+  @Get('analytics')
+  @ApiOperation({ summary: 'Get detailed analytics' })
+  @ApiResponse({ status: 200, description: 'Detailed lifecycle metrics payload' })
+  getAnalytics() {
+    return this.dashboardService.getAnalytics();
+  }
 }

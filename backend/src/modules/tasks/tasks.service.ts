@@ -1,15 +1,22 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import * as path from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { UpdateTaskStatusDto } from './dto/update-task-status.dto';
 import { UpdateTaskProgressDto } from './dto/update-task-progress.dto';
+import { CreateWorkUpdateDto } from './dto/create-work-update.dto';
+import { SubmitReviewDto } from './dto/submit-review.dto';
+import { StorageService } from '../storage/storage.service';
 import { TaskQuery } from './interfaces/task-query.interface';
-import { TaskStatus, ActivityAction } from '@prisma/client';
+import { TaskStatus, ActivityAction, ReviewDecisionType } from '@prisma/client';
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService,
+  ) {}
 
   async create(dto: CreateTaskDto, userId: string) {
     if (dto.assignedToId) {
@@ -42,6 +49,7 @@ export class TasksService {
           notes: dto.notes || null,
           createdById: userId,
           assignedToId: dto.assignedToId || null,
+          assignedAt: dto.assignedToId ? new Date() : null,
         },
         include: {
           createdBy: { select: { id: true, name: true } },
@@ -107,12 +115,18 @@ export class TasksService {
       if (dto.startDate !== undefined) updateData.startDate = dto.startDate ? new Date(dto.startDate) : null;
       if (dto.dueDate !== undefined) updateData.dueDate = new Date(dto.dueDate);
 
+      if (dto.reviewAssignedToId !== undefined && dto.reviewAssignedToId !== task.reviewAssignedToId) {
+        updateData.reviewAssignedToId = dto.reviewAssignedToId || null;
+        updateData.reviewAssignedAt = dto.reviewAssignedToId ? new Date() : null;
+      }
+
       // Reassignment detection
       if (dto.assignedToId !== undefined && dto.assignedToId !== task.assignedToId) {
         const oldAssigneeId = task.assignedToId;
         const newAssigneeId = dto.assignedToId || null;
 
         updateData.assignedToId = newAssigneeId;
+        updateData.assignedAt = newAssigneeId ? new Date() : null;
 
         // Automatically adjust status if assigning from not_assigned
         if (newAssigneeId && task.status === TaskStatus.not_assigned) {
@@ -308,26 +322,41 @@ export class TasksService {
       include: {
         createdBy: { select: { id: true, name: true } },
         assignedTo: { select: { id: true, name: true, avatar: true, department: true } },
+        reviewAssignedTo: { select: { id: true, name: true, avatar: true } },
         comments: {
           include: {
             user: { select: { id: true, name: true, avatar: true } },
           },
           orderBy: { createdAt: 'desc' },
-          take: 10,
+          take: 50,
         },
         progressUpdates: {
           include: {
             user: { select: { id: true, name: true, avatar: true } },
           },
           orderBy: { createdAt: 'desc' },
-          take: 10,
+          take: 50,
         },
         activityLogs: {
           include: {
             user: { select: { id: true, name: true } },
           },
           orderBy: { createdAt: 'desc' },
-          take: 10,
+          take: 100,
+        },
+        workUpdates: {
+          include: {
+            user: { select: { id: true, name: true, avatar: true } },
+            attachments: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        reviewDecisions: {
+          include: {
+            reviewer: { select: { id: true, name: true, avatar: true } },
+            workUpdate: true,
+          },
+          orderBy: { createdAt: 'desc' },
         },
       },
     });
@@ -348,14 +377,23 @@ export class TasksService {
         dueDate: taskDetails.dueDate,
         notes: taskDetails.notes,
         completedAt: taskDetails.completedAt,
+        archivedAt: taskDetails.archivedAt,
+        assignedAt: taskDetails.assignedAt,
+        submittedAt: taskDetails.submittedAt,
+        reviewedAt: taskDetails.reviewedAt,
+        reviewAssignedToId: taskDetails.reviewAssignedToId,
+        reviewAssignedAt: taskDetails.reviewAssignedAt,
         createdAt: taskDetails.createdAt,
         updatedAt: taskDetails.updatedAt,
         createdBy: taskDetails.createdBy,
         assignedTo: taskDetails.assignedTo,
+        reviewAssignedTo: taskDetails.reviewAssignedTo,
       },
       comments: taskDetails.comments,
       progressUpdates: taskDetails.progressUpdates,
       activityLogs: taskDetails.activityLogs,
+      workUpdates: taskDetails.workUpdates,
+      reviewDecisions: taskDetails.reviewDecisions,
     };
   }
 
@@ -370,6 +408,14 @@ export class TasksService {
     const whereClause: any = {
       isDeleted: false,
     };
+
+    if (query.onlyArchived) {
+      whereClause.archivedAt = { not: null };
+    } else if (query.includeArchived) {
+      // Includes both archived and unarchived
+    } else {
+      whereClause.archivedAt = null;
+    }
 
     if (query.status) whereClause.status = query.status;
     if (query.priority) whereClause.priority = query.priority;
@@ -612,5 +658,387 @@ export class TasksService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async submitWorkUpdate(taskId: string, dto: CreateWorkUpdateDto, userId: string) {
+    // 1. Verify task exists
+    const task = await this.prisma.task.findFirst({
+      where: { id: taskId, isDeleted: false },
+    });
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    // 2. Automatically increment revision number
+    const latestUpdate = await this.prisma.workUpdate.findFirst({
+      where: { taskId },
+      orderBy: { createdAt: 'desc' },
+    });
+    const revisionNumber = latestUpdate ? latestUpdate.revisionNumber + 1 : 1;
+
+    // 3. Create records in transaction
+    return this.prisma.$transaction(async (tx) => {
+      // Create WorkUpdate
+      const workUpdate = await tx.workUpdate.create({
+        data: {
+          taskId,
+          userId,
+          description: dto.description,
+          progress: dto.progress,
+          revisionNumber,
+        },
+        include: {
+          attachments: true,
+          user: { select: { id: true, name: true, avatar: true } },
+        },
+      });
+
+      // Create attachments
+      if (dto.attachments && dto.attachments.length > 0) {
+        for (const attachment of dto.attachments) {
+          await tx.workAttachment.create({
+            data: {
+              workUpdateId: workUpdate.id,
+              fileName: attachment.fileName,
+              fileUrl: attachment.fileUrl,
+              fileType: attachment.fileType,
+              fileSize: attachment.fileSize,
+            },
+          });
+
+          // Log attachment activity
+          await tx.activityLog.create({
+            data: {
+              taskId,
+              userId,
+              action: ActivityAction.attachment_added,
+              metadata: {
+                fileName: attachment.fileName,
+                fileUrl: attachment.fileUrl,
+              },
+            },
+          });
+        }
+      }
+
+      // Reload work update to get attachments
+      const reloadedWorkUpdate = await tx.workUpdate.findUnique({
+        where: { id: workUpdate.id },
+        include: {
+          attachments: true,
+          user: { select: { id: true, name: true, avatar: true } },
+        },
+      });
+
+      // Update Task status, progress, and submittedAt
+      await tx.task.update({
+        where: { id: taskId },
+        data: {
+          status: TaskStatus.under_review,
+          progress: dto.progress,
+          submittedAt: new Date(),
+        },
+      });
+
+      // Log submission activity
+      await tx.activityLog.create({
+        data: {
+          taskId,
+          userId,
+          action: ActivityAction.work_submitted,
+          metadata: {
+            progress: dto.progress,
+            revisionNumber,
+          },
+        },
+      });
+
+      // Log status updated
+      if (task.status !== TaskStatus.under_review) {
+        await tx.activityLog.create({
+          data: {
+            taskId,
+            userId,
+            action: ActivityAction.status_updated,
+            metadata: {
+              previousStatus: task.status,
+              newStatus: TaskStatus.under_review,
+            },
+          },
+        });
+      }
+
+      return reloadedWorkUpdate;
+    });
+  }
+
+  async submitReviewDecision(taskId: string, dto: SubmitReviewDto, userId: string, userRole: string) {
+    if (userRole !== 'core') {
+      throw new ForbiddenException('Only Core members can review tasks.');
+    }
+
+    const task = await this.prisma.task.findFirst({
+      where: { id: taskId, isDeleted: false },
+    });
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    // Enforce review ownership
+    if (task.reviewAssignedToId && task.reviewAssignedToId !== userId) {
+      throw new ForbiddenException('You are not the assigned reviewer for this task.');
+    }
+
+    const latestWorkUpdate = await this.prisma.workUpdate.findFirst({
+      where: { taskId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return this.prisma.$transaction(async (tx) => {
+      // If reviewer was not explicitly assigned, take ownership automatically
+      const reviewAssignUpdate: any = {};
+      if (!task.reviewAssignedToId) {
+        reviewAssignUpdate.reviewAssignedToId = userId;
+        reviewAssignUpdate.reviewAssignedAt = new Date();
+      }
+
+      const reviewDecision = await tx.reviewDecision.create({
+        data: {
+          taskId,
+          reviewerId: userId,
+          workUpdateId: latestWorkUpdate ? latestWorkUpdate.id : null,
+          decision: dto.decision,
+          comment: dto.comment,
+        },
+        include: {
+          reviewer: { select: { id: true, name: true, avatar: true } },
+          workUpdate: true,
+        },
+      });
+
+      const nextStatus =
+        dto.decision === ReviewDecisionType.approved
+          ? TaskStatus.completed
+          : TaskStatus.blocked; // Changes Requested maps to blocked
+
+      const taskUpdateData: any = {
+        ...reviewAssignUpdate,
+        status: nextStatus,
+        reviewedAt: new Date(),
+      };
+
+      if (dto.decision === ReviewDecisionType.approved) {
+        taskUpdateData.progress = 100;
+        taskUpdateData.completedAt = new Date();
+      }
+
+      await tx.task.update({
+        where: { id: taskId },
+        data: taskUpdateData,
+      });
+
+      // Log review activity
+      await tx.activityLog.create({
+        data: {
+          taskId,
+          userId,
+          action:
+            dto.decision === ReviewDecisionType.approved
+              ? ActivityAction.review_approved
+              : ActivityAction.review_changes_requested,
+          metadata: {
+            comment: dto.comment,
+            revisionNumber: latestWorkUpdate ? latestWorkUpdate.revisionNumber : null,
+          },
+        },
+      });
+
+      // Log status updated
+      if (task.status !== nextStatus) {
+        await tx.activityLog.create({
+          data: {
+            taskId,
+            userId,
+            action: ActivityAction.status_updated,
+            metadata: {
+              previousStatus: task.status,
+              newStatus: nextStatus,
+            },
+          },
+        });
+      }
+
+      return reviewDecision;
+    });
+  }
+
+  async getWorkUpdates(taskId: string) {
+    const task = await this.prisma.task.findFirst({
+      where: { id: taskId, isDeleted: false },
+    });
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    return this.prisma.workUpdate.findMany({
+      where: { taskId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        attachments: true,
+        user: { select: { id: true, name: true, avatar: true } },
+      },
+    });
+  }
+
+  async getReviews(taskId: string) {
+    const task = await this.prisma.task.findFirst({
+      where: { id: taskId, isDeleted: false },
+    });
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    return this.prisma.reviewDecision.findMany({
+      where: { taskId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        reviewer: { select: { id: true, name: true, avatar: true } },
+        workUpdate: true,
+      },
+    });
+  }
+
+  async getFiles(taskId: string) {
+    const task = await this.prisma.task.findFirst({
+      where: { id: taskId, isDeleted: false },
+    });
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    const attachments = await this.prisma.workAttachment.findMany({
+      where: {
+        workUpdate: {
+          taskId,
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const images: any[] = [];
+    const documents: any[] = [];
+    const pdfs: any[] = [];
+    const archives: any[] = [];
+    const others: any[] = [];
+
+    for (const file of attachments) {
+      const ext = path.extname(file.fileName).toLowerCase();
+      if (['.png', '.jpg', '.jpeg', '.webp'].includes(ext) || file.fileType.startsWith('image/')) {
+        images.push(file);
+      } else if (ext === '.pdf' || file.fileType === 'application/pdf') {
+        pdfs.push(file);
+      } else if (['.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx'].includes(ext)) {
+        documents.push(file);
+      } else if (['.zip', '.rar', '.tar', '.gz'].includes(ext)) {
+        archives.push(file);
+      } else {
+        others.push(file);
+      }
+    }
+
+    return {
+      images,
+      documents,
+      pdfs,
+      archives,
+      others,
+    };
+  }
+
+  async deleteAttachment(attachmentId: string, userId: string, userRole: string) {
+    const attachment = await this.prisma.workAttachment.findUnique({
+      where: { id: attachmentId },
+      include: {
+        workUpdate: {
+          include: {
+            task: true,
+          },
+        },
+      },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    // Only creator of the workUpdate OR a Core user can delete attachments
+    if (userRole !== 'core' && attachment.workUpdate.userId !== userId) {
+      throw new ForbiddenException('You are not authorized to delete this attachment.');
+    }
+
+    // 1. Delete file using storage service
+    await this.storageService.deleteFile(attachment.fileUrl);
+
+    // 2. Delete database record
+    await this.prisma.workAttachment.delete({
+      where: { id: attachmentId },
+    });
+
+    return { success: true };
+  }
+
+  // Get active review queue with SLA logic calculated in backend
+  async getReviewQueue(user: { id: string; role: string }) {
+    if (user.role !== 'core') {
+      throw new ForbiddenException('Access denied to Core workspace.');
+    }
+
+    const tasks = await this.prisma.task.findMany({
+      where: {
+        status: TaskStatus.under_review,
+        isDeleted: false,
+      },
+      orderBy: { submittedAt: 'asc' }, // Awaiting reviews, oldest first
+      include: {
+        assignedTo: { select: { id: true, name: true, avatar: true, department: true } },
+        reviewAssignedTo: { select: { id: true, name: true, avatar: true } },
+        workUpdates: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: {
+            attachments: true,
+            user: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+
+    const now = new Date().getTime();
+
+    return tasks.map(task => {
+      const submittedTime = task.submittedAt ? new Date(task.submittedAt).getTime() : new Date(task.createdAt).getTime();
+      const diffHours = (now - submittedTime) / 3600000;
+
+      let sla: 'fresh' | 'waiting' | 'overdue' = 'fresh';
+      if (diffHours >= 24) {
+        sla = 'overdue';
+      } else if (diffHours >= 4) {
+        sla = 'waiting';
+      }
+
+      return {
+        id: task.id,
+        name: task.name,
+        category: task.category,
+        priority: task.priority,
+        status: task.status,
+        progress: task.progress,
+        submittedAt: task.submittedAt,
+        sla,
+        assignedTo: task.assignedTo,
+        reviewAssignedTo: task.reviewAssignedTo,
+        latestRevision: task.workUpdates[0] || null,
+      };
+    });
   }
 }

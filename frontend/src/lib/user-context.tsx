@@ -56,7 +56,18 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function init() {
       try {
-        const { data: allUsers } = await api.getUsers({ includeInactive: true });
+        let allUsers;
+        try {
+          const res = await api.getUsers({ includeInactive: true });
+          allUsers = res.data;
+        } catch (err) {
+          console.warn('Failing with stale user context. Clearing selected_user_id and retrying...', err);
+          localStorage.removeItem('selected_user_id');
+          // Reload page once to clear memory state or call api with empty header
+          const res = await api.getUsers({ includeInactive: true });
+          allUsers = res.data;
+        }
+        
         setUsers(allUsers);
         
         let storedId = localStorage.getItem('selected_user_id');

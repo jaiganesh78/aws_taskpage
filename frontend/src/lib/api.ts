@@ -35,11 +35,17 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     userId = localStorage.getItem('selected_user_id') || '';
   }
 
-  const headers = new Headers({
-    'Content-Type': 'application/json',
-    ...(userId ? { 'x-user-id': userId } : {}),
-    ...options.headers,
-  });
+  const isMultipart = options.body instanceof FormData;
+  const headers = new Headers();
+  if (!isMultipart) {
+    headers.set('Content-Type', 'application/json');
+  }
+  if (userId) {
+    headers.set('x-user-id', userId);
+  }
+  if (options.headers) {
+    Object.entries(options.headers).forEach(([k, v]) => headers.set(k, v));
+  }
 
   try {
     const res = await fetch(url, {
@@ -255,4 +261,59 @@ export const api = {
     if (params?.limit) query.set('limit', String(params.limit));
     return request<{ data: Activity[]; pagination: any }>(`/tasks/${taskId}/activity?${query.toString()}`);
   },
+
+  uploadFile: (file: File, taskId: string) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return request<any>(`/tasks/upload?taskId=${taskId}`, {
+      method: 'POST',
+      body: formData,
+    });
+  },
+
+  submitWorkUpdate: (taskId: string, data: {
+    description: string;
+    progress: number;
+    attachments: { fileName: string; fileUrl: string; fileType: string; fileSize: number }[];
+  }) => request<any>(`/tasks/${taskId}/work-updates`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }).then(res => {
+    dispatchApiSuccess('Work update submitted successfully.');
+    return res;
+  }),
+
+  getWorkUpdates: (taskId: string) => request<any[]>(`/tasks/${taskId}/work-updates`),
+
+  submitReviewDecision: (taskId: string, data: {
+    decision: 'approved' | 'changes_requested';
+    comment: string;
+  }) => request<any>(`/tasks/${taskId}/reviews`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }).then(res => {
+    dispatchApiSuccess(`Review decision "${data.decision}" submitted.`);
+    return res;
+  }),
+
+  getReviews: (taskId: string) => request<any[]>(`/tasks/${taskId}/reviews`),
+
+  getFiles: (taskId: string) => request<{
+    images: any[];
+    documents: any[];
+    pdfs: any[];
+    archives: any[];
+    others: any[];
+  }>(`/tasks/${taskId}/files`),
+
+  deleteAttachment: (attachmentId: string) => request<any>(`/attachments/${attachmentId}`, {
+    method: 'DELETE',
+  }).then(res => {
+    dispatchApiSuccess('Attachment deleted.');
+    return res;
+  }),
+
+  getReviewQueue: () => request<any[]>('/reviews/queue'),
+
+  getAnalytics: () => request<any>('/dashboard/analytics'),
 };

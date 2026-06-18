@@ -10,6 +10,8 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { CurrentUserDto } from '../../common/decorators/current-user.decorator';
 import { Category, Priority, TaskStatus } from '@prisma/client';
 import { CreateCommentDto } from '../comments/dto/create-comment.dto';
+import { CreateWorkUpdateDto } from './dto/create-work-update.dto';
+import { SubmitReviewDto } from './dto/submit-review.dto';
 
 @ApiTags('Tasks')
 @ApiHeader({
@@ -220,5 +222,53 @@ export class TasksController {
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
     });
+  }
+
+  @Post(':id/work-updates')
+  @ApiOperation({ summary: 'Submit a new work update with files' })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiResponse({ status: 201, description: 'Work update submitted successfully' })
+  submitWorkUpdate(
+    @Param('id') id: string,
+    @Body() dto: CreateWorkUpdateDto,
+    @CurrentUser() user: CurrentUserDto,
+  ) {
+    return this.tasksService.submitWorkUpdate(id, dto, user.id);
+  }
+
+  @Get(':id/work-updates')
+  @ApiOperation({ summary: 'Get work updates for a task' })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiResponse({ status: 200, description: 'List of work updates' })
+  getWorkUpdates(@Param('id') id: string) {
+    return this.tasksService.getWorkUpdates(id);
+  }
+
+  @Post(':id/reviews')
+  @ApiOperation({ summary: 'Submit a review decision for a task' })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiResponse({ status: 201, description: 'Review decision recorded successfully' })
+  submitReviewDecision(
+    @Param('id') id: string,
+    @Body() dto: SubmitReviewDto,
+    @CurrentUser() user: CurrentUserDto,
+  ) {
+    return this.tasksService.submitReviewDecision(id, dto, user.id, user.role);
+  }
+
+  @Get(':id/reviews')
+  @ApiOperation({ summary: 'Get review decisions for a task' })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiResponse({ status: 200, description: 'List of review decisions' })
+  getReviews(@Param('id') id: string) {
+    return this.tasksService.getReviews(id);
+  }
+
+  @Get(':id/files')
+  @ApiOperation({ summary: 'Get grouped files for a task' })
+  @ApiParam({ name: 'id', description: 'Task ID' })
+  @ApiResponse({ status: 200, description: 'Grouped attachments' })
+  getFiles(@Param('id') id: string) {
+    return this.tasksService.getFiles(id);
   }
 }

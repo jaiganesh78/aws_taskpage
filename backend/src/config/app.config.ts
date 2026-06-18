@@ -6,7 +6,7 @@ export default registerAs('app', () => ({
   databaseUrl: process.env.DATABASE_URL,
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
   taskArchiveHours: parseInt(process.env.TASK_ARCHIVE_HOURS || '48', 10),
-  taskDeleteDays: parseInt(process.env.TASK_DELETE_DAYS || '20', 10),
+  taskDeleteDays: parseInt(process.env.TASK_DELETE_DAYS || '30', 10),
   storageProvider: process.env.STORAGE_PROVIDER || 'local',
   awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
   awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,

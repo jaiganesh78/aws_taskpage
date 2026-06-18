@@ -10,4 +10,6 @@ export interface TaskQuery {
   assigneeId?: string;
   sortBy?: 'dueDate' | 'priority' | 'createdAt' | 'updatedAt' | 'status';
   sortOrder?: 'asc' | 'desc';
+  includeArchived?: boolean;
+  onlyArchived?: boolean;
 }

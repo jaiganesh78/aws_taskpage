@@ -43,6 +43,12 @@ enum ActivityAction {
   comment_added
   comment_deleted
   deleted
+  work_submitted
+  review_approved
+  review_changes_requested
+  archived
+  permanently_deleted
+  attachment_added
 }
 
 model User {
@@ -58,6 +64,7 @@ model User {
 
   createdTasks    Task[]           @relation("TaskCreator")
   assignedTasks   Task[]           @relation("TaskAssignee")
+  reviewAssignedTasks Task[]       @relation("TaskReviewAssignee")
   comments        Comment[]
   progressUpdates ProgressUpdate[]
   activityLogs    ActivityLog[]
@@ -84,6 +91,10 @@ model Task {
   reviewedAt      DateTime?
   isDeleted       Boolean          @default(false)
   deletedAt       DateTime?
+  reviewAssignedToId String?
+  reviewAssignedAt   DateTime?
+ 
+ 
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
@@ -92,6 +103,8 @@ model Task {
 
   assignedToId    String?
   assignedTo      User?            @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  reviewAssignedTo User?           @relation("TaskReviewAssignee", fields: [reviewAssignedToId], references: [id], onDelete: SetNull)
 
   comments        Comment[]
   progressUpdates ProgressUpdate[]
@@ -103,8 +116,11 @@ model Task {
   @@index([name])
   @@index([createdById])
   @@index([assignedToId])
+  @@index([reviewAssignedToId])
   @@index([isDeleted, status, dueDate])
   @@index([isDeleted, assignedToId, status])
+  @@index([isDeleted, archivedAt, status])
+  @@index([isDeleted, submittedAt])
   @@index([priority])
   @@map("tasks")
 }
@@ -169,6 +185,7 @@ model WorkUpdate {
   user            User             @relation(fields: [userId], references: [id])
   description     String           @db.Text
   progress        Int
+  revisionNumber  Int              @default(1)
   createdAt       DateTime         @default(now())
 
   attachments     WorkAttachment[]
@@ -176,6 +193,7 @@ model WorkUpdate {
 
   @@index([taskId])
   @@index([userId])
+  @@index([taskId, createdAt])
   @@map("work_updates")
 }
 
@@ -207,5 +225,6 @@ model ReviewDecision {
 
   @@index([taskId])
   @@index([reviewerId])
+  @@index([taskId, createdAt])
   @@map("review_decisions")
 }
