@@ -27,6 +27,13 @@ interface WorkOverviewProps {
   onSwitchTab: (tab: string) => void;
 }
 
+function getGreetingTime() {
+  const hr = new Date().getHours();
+  if (hr < 12) return 'Morning';
+  if (hr < 17) return 'Afternoon';
+  return 'Evening';
+}
+
 export function WorkOverview({
   tasks,
   reviewQueue,
@@ -51,6 +58,7 @@ export function WorkOverview({
         meta: item.sla ? `SLA: ${item.sla}` : null,
         priority: item.priority,
         dueDate: item.dueDate,
+        category: item.category,
       }));
 
       const overdue = tasks
@@ -63,6 +71,7 @@ export function WorkOverview({
           meta: 'Overdue',
           priority: t.priority,
           dueDate: t.dueDate,
+          category: t.category,
         }));
 
       const blocked = tasks
@@ -75,6 +84,7 @@ export function WorkOverview({
           meta: 'Blocked / Changes Requested',
           priority: t.priority,
           dueDate: t.dueDate,
+          category: t.category,
         }));
 
       return [...reviews, ...overdue, ...blocked];
@@ -92,6 +102,7 @@ export function WorkOverview({
           meta: 'Overdue',
           priority: t.priority,
           dueDate: t.dueDate,
+          category: t.category,
         }));
 
       const blocked = myActiveTasks
@@ -104,6 +115,7 @@ export function WorkOverview({
           meta: 'Changes Requested',
           priority: t.priority,
           dueDate: t.dueDate,
+          category: t.category,
         }));
 
       const dueToday = myActiveTasks
@@ -116,6 +128,7 @@ export function WorkOverview({
           meta: 'Due Today',
           priority: t.priority,
           dueDate: t.dueDate,
+          category: t.category,
         }));
 
       const myWork = myActiveTasks
@@ -128,6 +141,7 @@ export function WorkOverview({
           meta: 'Active Work',
           priority: t.priority,
           dueDate: t.dueDate,
+          category: t.category,
         }));
 
       // Deduplicate by task ID, prioritizing overdue and blocked over active work
@@ -176,83 +190,160 @@ export function WorkOverview({
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Needs Attention Column */}
-      <div className="lg:col-span-2 space-y-4">
-        <div className="flex items-center justify-between pb-2 border-b border-aws-gray-200">
-          <div className="flex items-center gap-2">
-            <ShieldAlert size={16} className="text-aws-orange" />
-            <h2 className="text-sm font-bold text-aws-slate">Needs Attention</h2>
-            <span className="bg-aws-gray-100 text-aws-slate px-2 py-0.5 rounded-full text-[10px] font-bold">
-              {attentionItems.length}
+    <div className="space-y-6">
+      {/* Premium Sunset Greeting Banner */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#FFFDF9] via-[#FFF8EC] to-[#FFF0D4] border border-[#FFE7C4] p-5 md:p-6 shadow-sm">
+        {/* Subtle orange/gold glowing aura in the background */}
+        <div className="absolute right-[-40px] top-[-40px] w-40 h-40 rounded-full bg-amber-200/30 blur-3xl pointer-events-none" />
+        <div className="absolute right-[10%] bottom-[-20px] w-32 h-32 rounded-full bg-orange-100/30 blur-2xl pointer-events-none" />
+        
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-orange-700 bg-orange-100/55 border border-orange-200/50">
+              AWS Student Builder Groups REC
             </span>
+            <h1 className="text-xl md:text-2xl font-bold text-aws-slate">
+              Good {getGreetingTime()}, {currentUser?.name || 'Operator'} !
+            </h1>
+            <p className="text-xs text-aws-slate-lighter leading-relaxed">
+              You're on track. Manage active assignments, check the review queue, and coordinate event-ready operations to ensure seamless delivery across all milestones.
+            </p>
           </div>
-          {isCore ? (
-            <button 
-              onClick={() => onSwitchTab('Reviews')}
-              className="text-xs text-aws-gray-500 hover:text-aws-orange font-semibold flex items-center gap-1 transition-colors"
-            >
-              Go to Review Queue <ArrowRight size={12} />
-            </button>
-          ) : (
-            <button 
-              onClick={() => onSwitchTab('My Work')}
-              className="text-xs text-aws-gray-500 hover:text-aws-orange font-semibold flex items-center gap-1 transition-colors"
-            >
-              View My Tasks <ArrowRight size={12} />
-            </button>
-          )}
-        </div>
+          
+          <div className="flex items-center gap-6">
+            {/* Orbital AWS Badge graphic */}
+            <div className="hidden md:flex items-center justify-center relative w-28 h-28 flex-shrink-0">
+              <div className="absolute inset-0 rounded-full border border-dashed border-orange-200/80 animate-spin" style={{ animationDuration: '40s' }} />
+              <div className="absolute inset-6 rounded-full bg-white border border-[#FFE7C4] shadow-inner flex flex-col items-center justify-center">
+                <span className="text-[11px] font-black text-aws-slate tracking-tighter">aws</span>
+                <div className="w-4 h-0.5 bg-aws-orange rounded-full mt-0.5" />
+              </div>
+              <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-5 h-5 rounded-md bg-[#F4F1FD] border border-[#DDD6FE] shadow-sm flex items-center justify-center" title="IAM">
+                <span className="text-[7px] font-bold text-purple-650">IAM</span>
+              </div>
+              <div className="absolute right-[-2px] top-1/2 -translate-y-1/2 w-5 h-5 rounded-md bg-[#FFF7ED] border border-[#FFEDD5] shadow-sm flex items-center justify-center" title="EC2">
+                <span className="text-[7px] font-bold text-orange-600">EC2</span>
+              </div>
+              <div className="absolute bottom-1 right-1 w-5 h-5 rounded-md bg-[#ECFDF5] border border-[#D1FAE5] shadow-sm flex items-center justify-center" title="DB">
+                <span className="text-[7px] font-bold text-emerald-600">DB</span>
+              </div>
+              <div className="absolute bottom-1 left-1 w-5 h-5 rounded-md bg-[#EFF6FF] border border-[#DBEAFE] shadow-sm flex items-center justify-center" title="S3">
+                <span className="text-[7px] font-bold text-blue-600">S3</span>
+              </div>
+              <div className="absolute left-[-2px] top-1/2 -translate-y-1/2 w-5 h-5 rounded-md bg-[#FFF5F5] border border-[#FEE2E2] shadow-sm flex items-center justify-center" title="Lambda">
+                <span className="text-[7px] font-bold text-red-500">λ</span>
+              </div>
+            </div>
 
-        <motion.div 
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="space-y-2.5"
-        >
-          {attentionItems.map((item) => {
-            const isItemOverdue = isOverdue(item.dueDate) && item.meta !== 'Completed';
-            
-            let typeBadgeStyle = "bg-aws-gray-50 text-aws-gray-500";
-            if (item.type === 'review_waiting') typeBadgeStyle = "bg-purple-50 text-purple-600 border border-purple-100";
-            else if (item.type === 'overdue') typeBadgeStyle = "bg-red-50 text-red-650 border border-red-150";
-            else if (item.type === 'blocked') typeBadgeStyle = "bg-yellow-55 text-yellow-700 border border-yellow-200";
-            else if (item.type === 'due_today') typeBadgeStyle = "bg-orange-50 text-aws-orange border border-aws-orange/20";
-            else if (item.type === 'assigned_me') typeBadgeStyle = "bg-blue-50 text-blue-600 border border-blue-100";
-
-            return (
-              <motion.div
-                key={`${item.id}-${item.type}`}
-                variants={itemVariants}
-                onClick={() => onSelectTask(item.id)}
-                className="bg-white border border-aws-gray-200 hover:border-aws-gray-300 p-4 rounded-xl shadow-sm hover:shadow transition-all cursor-pointer flex items-start justify-between gap-4"
+            <div className="flex flex-col sm:flex-row items-stretch md:flex-col gap-2 flex-shrink-0">
+              <button 
+                onClick={() => onSwitchTab(isCore ? 'Tasks' : 'My Work')}
+                className="px-3.5 py-1.5 bg-gradient-to-r from-aws-orange to-amber-500 hover:from-aws-orange-dark hover:to-orange-600 text-white rounded-lg text-xs font-bold shadow-md shadow-aws-orange/10 transition-all cursor-pointer text-center"
               >
-                <div className="min-w-0 space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${typeBadgeStyle}`}>
-                      {item.meta || item.type.replace('_', ' ')}
-                    </span>
-                    <PriorityBadge priority={item.priority} />
-                  </div>
-                  <h3 className="text-sm font-bold text-aws-slate truncate">{item.title}</h3>
-                  <p className="text-xs text-aws-gray-500 flex items-center gap-1.5">
-                    <User size={12} className="text-aws-gray-400" />
-                    <span>{item.description}</span>
-                  </p>
-                </div>
+                Explore Events
+              </button>
+              <button 
+                onClick={() => onSwitchTab(isCore ? 'Crew' : 'History')}
+                className="px-3.5 py-1.5 bg-white hover:bg-aws-gray-50 text-aws-slate border border-aws-gray-200 rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer text-center"
+              >
+                {isCore ? 'View Leaderboard' : 'View History'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-                <div className="flex flex-col items-end gap-1.5 flex-shrink-0 text-right">
-                  <span className={`text-[10px] font-medium flex items-center gap-1 ${isItemOverdue ? 'text-red-500 font-bold' : 'text-aws-gray-500'}`}>
-                    <CalendarDays size={11} />
-                    {formatDate(item.dueDate)}
-                  </span>
-                  <div className="text-[10px] text-aws-gray-400 hover:text-aws-orange font-bold flex items-center gap-0.5">
-                    Workspace <ArrowRight size={10} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Needs Attention Column */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-aws-gray-200">
+            <div className="flex items-center gap-2">
+              <ShieldAlert size={16} className="text-aws-orange" />
+              <h2 className="text-sm font-bold text-aws-slate">Needs Attention</h2>
+              <span className="bg-aws-gray-100 text-aws-slate px-2 py-0.5 rounded-full text-[10px] font-bold">
+                {attentionItems.length}
+              </span>
+            </div>
+            {isCore ? (
+              <button 
+                onClick={() => onSwitchTab('Reviews')}
+                className="text-xs text-aws-gray-500 hover:text-aws-orange font-semibold flex items-center gap-1 transition-colors"
+              >
+                Go to Review Queue <ArrowRight size={12} />
+              </button>
+            ) : (
+              <button 
+                onClick={() => onSwitchTab('My Work')}
+                className="text-xs text-aws-gray-500 hover:text-aws-orange font-semibold flex items-center gap-1 transition-colors"
+              >
+                View My Tasks <ArrowRight size={12} />
+              </button>
+            )}
+          </div>
+
+          <motion.div 
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="space-y-2.5"
+          >
+            {attentionItems.map((item) => {
+              const isItemOverdue = isOverdue(item.dueDate) && item.meta !== 'Completed';
+              
+              let typeBadgeStyle = "bg-aws-gray-50 text-aws-gray-500";
+              if (item.type === 'review_waiting') typeBadgeStyle = "bg-purple-50 text-purple-600 border border-purple-100/50";
+              else if (item.type === 'overdue') typeBadgeStyle = "bg-red-50 text-red-650 border border-red-150/50";
+              else if (item.type === 'blocked') typeBadgeStyle = "bg-yellow-50 text-yellow-700 border border-yellow-200/50";
+              else if (item.type === 'due_today') typeBadgeStyle = "bg-orange-50 text-aws-orange border border-aws-orange/15";
+              else if (item.type === 'assigned_me') typeBadgeStyle = "bg-blue-50 text-blue-600 border border-blue-100/50";
+
+              return (
+                <motion.div
+                  key={`${item.id}-${item.type}`}
+                  variants={itemVariants}
+                  onClick={() => onSelectTask(item.id)}
+                  className={`bg-white border border-aws-gray-200 hover:border-aws-gray-300 p-4 rounded-xl shadow-sm hover:shadow transition-all cursor-pointer flex items-start justify-between gap-4 border-t-4 ${
+                    item.category === 'pre_event' ? 'border-t-purple-400' :
+                    item.category === 'during_event' ? 'border-t-aws-orange' :
+                    item.category === 'post_event' ? 'border-t-emerald-400' : 'border-t-aws-gray-300'
+                  }`}
+                >
+                  <div className="min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${typeBadgeStyle}`}>
+                        {item.meta || item.type.replace('_', ' ')}
+                      </span>
+                      {item.category && (
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                          item.category === 'pre_event' ? 'bg-purple-55 text-purple-650 border border-purple-100/30' :
+                          item.category === 'during_event' ? 'bg-orange-55 text-orange-650 border border-orange-100/30' :
+                          item.category === 'post_event' ? 'bg-emerald-55 text-emerald-650 border border-emerald-100/30' :
+                          'bg-aws-gray-50 text-aws-gray-650 border border-aws-gray-150'
+                        }`}>
+                          {item.category.replace('_', ' ')}
+                        </span>
+                      )}
+                      <PriorityBadge priority={item.priority} />
+                    </div>
+                    <h3 className="text-sm font-bold text-aws-slate truncate">{item.title}</h3>
+                    <p className="text-xs text-aws-gray-500 flex items-center gap-1.5">
+                      <User size={12} className="text-aws-gray-400" />
+                      <span>{item.description}</span>
+                    </p>
                   </div>
-                </div>
-              </motion.div>
-            );
-          })}
+
+                  <div className="flex flex-col items-end gap-1.5 flex-shrink-0 text-right">
+                    <span className={`text-[10px] font-medium flex items-center gap-1 ${isItemOverdue ? 'text-red-500 font-bold' : 'text-aws-gray-500'}`}>
+                      <CalendarDays size={11} />
+                      {formatDate(item.dueDate)}
+                    </span>
+                    <div className="text-[10px] text-aws-gray-400 hover:text-aws-orange font-bold flex items-center gap-0.5">
+                      Workspace <ArrowRight size={10} />
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
 
           {attentionItems.length === 0 && (
             <div className="text-center py-16 bg-white border border-aws-gray-150 rounded-xl">
@@ -333,5 +424,6 @@ export function WorkOverview({
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }

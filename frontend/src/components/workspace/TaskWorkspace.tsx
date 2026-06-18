@@ -135,19 +135,23 @@ export function TaskWorkspace({
                 key={task.id}
                 variants={itemVariants}
                 onClick={() => onSelectTask(task.id)}
-                className="bg-white border border-aws-gray-150 hover:border-aws-gray-250 p-5 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between min-h-[170px] relative group"
+                className={`bg-white border border-aws-gray-150 hover:border-aws-gray-250 p-5 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between min-h-[170px] relative group border-t-4 ${
+                  task.category === 'pre_event' ? 'border-t-purple-400' :
+                  task.category === 'during_event' ? 'border-t-aws-orange' :
+                  task.category === 'post_event' ? 'border-t-emerald-400' : 'border-t-aws-gray-300'
+                }`}
               >
                 <div className="space-y-2.5">
                   <div className="flex items-center justify-between gap-2 text-[10px]">
                     <span 
-                      className="px-2 py-0.5 rounded-full font-bold uppercase tracking-wider text-[9px]"
-                      style={{
-                        background: `${categoryObj?.color}10`,
-                        color: categoryObj?.color,
-                        border: `1px solid ${categoryObj?.color}20`
-                      }}
+                      className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
+                        task.category === 'pre_event' ? 'bg-purple-50 text-purple-700 border border-purple-100/55' :
+                        task.category === 'during_event' ? 'bg-orange-50 text-orange-700 border border-orange-200/55' :
+                        task.category === 'post_event' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100/55' :
+                        'bg-aws-gray-50 text-aws-gray-650 border border-aws-gray-200/55'
+                      }`}
                     >
-                      {categoryObj?.label}
+                      {categoryObj?.label || task.category.replace('_', ' ')}
                     </span>
                     <PriorityBadge priority={task.priority} />
                   </div>
@@ -174,7 +178,7 @@ export function TaskWorkspace({
 
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <StatusBadge status={task.status} />
-                    <span className={`text-[10px] font-bold flex items-center gap-1 ${isTaskOverdue ? 'text-red-500' : 'text-aws-orange'}`}>
+                    <span className={`text-[10px] font-bold flex items-center gap-1 ${isTaskOverdue ? 'text-red-500' : 'text-aws-slate'}`}>
                       {task.progress}%
                     </span>
                   </div>
@@ -227,7 +231,12 @@ export function TaskWorkspace({
                         {task.name}
                       </td>
                       <td className="p-3.5">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-aws-slate/5 text-aws-slate border border-aws-gray-100">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                          task.category === 'pre_event' ? 'bg-purple-50 text-purple-700 border-purple-100/50' :
+                          task.category === 'during_event' ? 'bg-orange-50 text-orange-700 border-orange-200/50' :
+                          task.category === 'post_event' ? 'bg-emerald-50 text-emerald-700 border-emerald-100/50' :
+                          'bg-aws-gray-55 text-aws-gray-650 border-aws-gray-200/50'
+                        }`}>
                           {task.category.replace('_', ' ')}
                         </span>
                       </td>
@@ -250,7 +259,7 @@ export function TaskWorkspace({
                       <td className={`p-3.5 font-medium ${isTaskOverdue ? 'text-red-500 font-bold' : 'text-aws-gray-500'}`}>
                         {formatDate(task.dueDate)}
                       </td>
-                      <td className="p-3.5 text-right font-bold text-aws-orange text-xs">
+                      <td className="p-3.5 text-right font-bold text-aws-slate text-xs">
                         {task.progress}%
                       </td>
                     </tr>
@@ -318,13 +327,17 @@ export function TaskWorkspace({
                       <div
                         key={task.id}
                         onClick={() => onSelectTask(task.id)}
-                        className="bg-white border border-aws-gray-150 hover:border-aws-orange/30 p-3.5 rounded-lg shadow-sm cursor-pointer hover:shadow transition-all space-y-2.5 group"
+                        className={`bg-white border border-aws-gray-150 hover:border-aws-orange/30 p-3.5 rounded-lg shadow-sm cursor-pointer hover:shadow transition-all space-y-2.5 group border-t-4 ${
+                          task.category === 'pre_event' ? 'border-t-purple-400' :
+                          task.category === 'during_event' ? 'border-t-aws-orange' :
+                          task.category === 'post_event' ? 'border-t-emerald-400' : 'border-t-aws-gray-300'
+                        }`}
                       >
                         <h4 className="text-xs font-bold text-aws-slate group-hover:text-aws-orange transition-colors line-clamp-2 leading-snug">
                           {task.name}
                         </h4>
                         
-                        <div className="flex items-center justify-between text-[10px] text-aws-gray-400 border-t border-aws-gray-50 pt-2 flex-wrap gap-1">
+                        <div className="flex items-center justify-between text-[10px] text-aws-gray-400 border-t border-aws-gray-55 pt-2 flex-wrap gap-1">
                           <div className="flex items-center gap-1">
                             <Calendar size={10} />
                             <span className={isTaskOverdue ? 'text-red-500 font-bold' : ''}>
@@ -332,11 +345,11 @@ export function TaskWorkspace({
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <span className="font-semibold text-aws-orange">{task.progress}%</span>
+                            <span className="font-semibold text-aws-slate">{task.progress}%</span>
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between text-[10px] border-t border-aws-gray-50 pt-2">
+                        <div className="flex items-center justify-between text-[10px] border-t border-aws-gray-55 pt-2">
                           <PriorityBadge priority={task.priority} />
                           <div className="w-4.5 h-4.5 rounded-full bg-aws-slate/5 flex items-center justify-center text-[8px] font-bold text-aws-slate">
                             {task.assignedTo ? getInitials(task.assignedTo.name) : 'U'}

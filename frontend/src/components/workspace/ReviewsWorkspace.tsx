@@ -61,7 +61,7 @@ export function ReviewsWorkspace({
           <h2 className="text-sm font-bold text-aws-slate uppercase tracking-wider">Awaiting Review Queue</h2>
           <p className="text-xs text-aws-gray-500 mt-0.5">Validate crew submissions, review uploaded evidence, and register operational decisions.</p>
         </div>
-        <span className="bg-aws-orange text-white px-2.5 py-0.5 rounded-full text-xs font-bold shadow-sm shadow-aws-orange/20">
+        <span className="bg-aws-slate text-white px-2.5 py-0.5 rounded-full text-xs font-bold shadow-sm shadow-aws-slate/10">
           {reviewQueue.length} Active Submissions
         </span>
       </div>
