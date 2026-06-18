@@ -215,3 +215,41 @@ body {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* Premium Drawer elements and inputs */
+.drawer-backdrop {
+  background-color: rgba(35, 47, 62, 0.2);
+  backdrop-filter: blur(4px);
+}
+
+.drawer-container {
+  box-shadow: -8px 0 32px rgba(35, 47, 62, 0.08), -2px 0 8px rgba(35, 47, 62, 0.04);
+}
+
+.workspace-scrollable::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.workspace-scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+.workspace-scrollable::-webkit-scrollbar-thumb {
+  background: rgba(35, 47, 62, 0.12);
+  border-radius: 9999px;
+}
+.workspace-scrollable::-webkit-scrollbar-thumb:hover {
+  background: rgba(35, 47, 62, 0.25);
+}
+
+.premium-input {
+  background: #ffffff;
+  border: 1px solid rgba(35, 47, 62, 0.12);
+  box-shadow: 0 1px 2px rgba(35, 47, 62, 0.02), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transition: all 0.15s ease;
+}
+.premium-input:focus {
+  border-color: rgba(255, 153, 0, 0.5);
+  box-shadow: 0 1px 2px rgba(35, 47, 62, 0.02), 0 0 0 3px rgba(255, 153, 0, 0.1);
+  outline: none;
+}
+
